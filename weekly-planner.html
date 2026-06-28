@@ -1,0 +1,609 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Weekly Planner</title>
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link href="https://fonts.googleapis.com/css2?family=Playfair+Display:wght@400;600;700&family=DM+Sans:wght@400;500;600;700&display=swap" rel="stylesheet">
+    <style>
+        :root {
+            --bg:           #FDF8F4;
+            --card:         #FFFFFF;
+            --accent:       #C9856A;
+            --accent-light: #F5E6DF;
+            --text:         #2C2420;
+            --muted:        #9B8A84;
+            --success:      #7AAE8E;
+            --border:       #EDE4DF;
+            --danger:       #D95F5F;
+        }
+
+        *, *::before, *::after {
+            box-sizing: border-box;
+            margin: 0;
+            padding: 0;
+        }
+
+        body {
+            background: var(--bg);
+            color: var(--text);
+            font-family: 'DM Sans', sans-serif;
+            min-height: 100vh;
+            -webkit-font-smoothing: antialiased;
+        }
+
+        .app {
+            max-width: 480px;
+            margin: 0 auto;
+            min-height: 100vh;
+        }
+
+        /* ── Header ─────────────────────────────────── */
+
+        .header {
+            background: var(--accent);
+            padding: 24px 20px 20px;
+        }
+
+        .header h1 {
+            font-family: 'Playfair Display', serif;
+            font-size: 26px;
+            font-weight: 700;
+            color: #fff;
+            letter-spacing: -0.2px;
+        }
+
+        #header-summary {
+            margin-top: 5px;
+            font-size: 13px;
+            font-weight: 500;
+            color: rgba(255, 255, 255, 0.85);
+        }
+
+        /* ── Week Navigation ─────────────────────────── */
+
+        .week-nav {
+            display: flex;
+            align-items: center;
+            justify-content: space-between;
+            padding: 14px 20px 10px;
+            gap: 8px;
+        }
+
+        .nav-btn {
+            background: var(--card);
+            border: 1px solid var(--border);
+            color: var(--accent);
+            font-family: 'DM Sans', sans-serif;
+            font-size: 13px;
+            font-weight: 700;
+            border-radius: 12px;
+            padding: 8px 14px;
+            cursor: pointer;
+            white-space: nowrap;
+            flex-shrink: 0;
+            transition: background 0.15s, color 0.15s, border-color 0.15s;
+        }
+
+        .nav-btn:hover {
+            background: var(--accent);
+            border-color: var(--accent);
+            color: #fff;
+        }
+
+        .week-label {
+            flex: 1;
+            text-align: center;
+            min-width: 0;
+        }
+
+        .wl-title {
+            font-size: 14px;
+            font-weight: 700;
+            color: var(--text);
+        }
+
+        .wl-range {
+            font-size: 11px;
+            font-weight: 400;
+            color: var(--muted);
+            margin-top: 2px;
+        }
+
+        /* ── Days Container ──────────────────────────── */
+
+        .days {
+            padding: 6px 20px 48px;
+            display: flex;
+            flex-direction: column;
+            gap: 12px;
+        }
+
+        /* ── Day Card ────────────────────────────────── */
+
+        .day-card {
+            background: var(--card);
+            border: 1px solid var(--border);
+            border-radius: 16px;
+            overflow: hidden;
+            box-shadow: 0 1px 4px rgba(44, 36, 32, 0.05);
+        }
+
+        .day-card.today {
+            border-color: var(--accent);
+            box-shadow: 0 0 0 1.5px var(--accent),
+                        0 2px 12px rgba(201, 133, 106, 0.13);
+        }
+
+        .day-hd {
+            display: flex;
+            align-items: center;
+            justify-content: space-between;
+            padding: 13px 16px 11px;
+        }
+
+        .day-name {
+            font-family: 'Playfair Display', serif;
+            font-size: 15px;
+            font-weight: 600;
+            color: var(--text);
+        }
+
+        .today .day-name { color: var(--accent); }
+
+        .day-date {
+            margin-top: 2px;
+            font-size: 12px;
+            font-weight: 400;
+            color: var(--muted);
+        }
+
+        /* ── Badges ──────────────────────────────────── */
+
+        .badge {
+            font-size: 11px;
+            font-weight: 600;
+            padding: 3px 9px;
+            border-radius: 20px;
+            flex-shrink: 0;
+        }
+
+        .badge-today { background: var(--accent);       color: #fff; }
+        .badge-rem   { background: var(--accent-light);  color: var(--accent); }
+        .badge-done  { background: #EEF7F2;              color: var(--success); }
+
+        /* ── Task Items ──────────────────────────────── */
+
+        .task-item {
+            display: flex;
+            align-items: center;
+            gap: 10px;
+            padding: 8px 16px;
+            border-top: 1px solid var(--border);
+        }
+
+        /* Custom round checkbox */
+        .task-cb {
+            -webkit-appearance: none;
+            appearance: none;
+            width: 18px;
+            height: 18px;
+            border-radius: 50%;
+            border: 2px solid var(--border);
+            background: var(--bg);
+            cursor: pointer;
+            flex-shrink: 0;
+            position: relative;
+            transition: border-color 0.15s, background 0.15s;
+        }
+
+        .task-cb:hover:not(:checked) { border-color: var(--success); }
+
+        .task-cb:checked {
+            background: var(--success);
+            border-color: var(--success);
+        }
+
+        .task-cb:checked::after {
+            content: '';
+            position: absolute;
+            left: 4px;
+            top: 2px;
+            width: 5px;
+            height: 8px;
+            border: 2px solid #fff;
+            border-top: none;
+            border-left: none;
+            transform: rotate(42deg);
+        }
+
+        .task-text {
+            flex: 1;
+            font-size: 14px;
+            line-height: 1.4;
+            color: var(--text);
+            word-break: break-word;
+        }
+
+        .task-item.done .task-text {
+            text-decoration: line-through;
+            color: var(--muted);
+        }
+
+        .task-del {
+            background: none;
+            border: none;
+            padding: 3px 5px;
+            font-size: 13px;
+            line-height: 1;
+            color: var(--muted);
+            cursor: pointer;
+            border-radius: 6px;
+            opacity: 0.4;
+            flex-shrink: 0;
+            transition: opacity 0.15s, color 0.15s;
+        }
+
+        .task-del:hover {
+            opacity: 1;
+            color: var(--danger);
+        }
+
+        /* ── Add Task ────────────────────────────────── */
+
+        .add-section {
+            padding: 6px 16px 14px;
+        }
+
+        .add-btn {
+            display: inline-flex;
+            align-items: center;
+            gap: 6px;
+            background: none;
+            border: none;
+            color: var(--accent);
+            font-family: 'DM Sans', sans-serif;
+            font-size: 13px;
+            font-weight: 700;
+            cursor: pointer;
+            padding: 4px 0;
+            opacity: 0.8;
+            transition: opacity 0.15s;
+        }
+
+        .add-btn:hover { opacity: 1; }
+
+        .input-row {
+            display: none;
+            align-items: center;
+            gap: 7px;
+        }
+
+        .input-row.open { display: flex; }
+
+        .task-input {
+            flex: 1;
+            min-width: 0;
+            background: var(--bg);
+            border: 1px solid var(--border);
+            border-radius: 10px;
+            padding: 7px 11px;
+            font-family: 'DM Sans', sans-serif;
+            font-size: 13px;
+            color: var(--text);
+            outline: none;
+            transition: border-color 0.15s, box-shadow 0.15s;
+        }
+
+        .task-input::placeholder { color: var(--muted); }
+
+        .task-input:focus {
+            border-color: var(--accent);
+            box-shadow: 0 0 0 2.5px rgba(201, 133, 106, 0.15);
+        }
+
+        .btn-confirm,
+        .btn-cancel {
+            width: 32px;
+            height: 32px;
+            border-radius: 10px;
+            font-size: 14px;
+            cursor: pointer;
+            display: inline-flex;
+            align-items: center;
+            justify-content: center;
+            flex-shrink: 0;
+            transition: opacity 0.15s, border-color 0.15s, color 0.15s;
+        }
+
+        .btn-confirm {
+            background: var(--accent);
+            border: none;
+            color: #fff;
+        }
+
+        .btn-confirm:hover { opacity: 0.85; }
+
+        .btn-cancel {
+            background: none;
+            border: 1px solid var(--border);
+            color: var(--muted);
+        }
+
+        .btn-cancel:hover {
+            border-color: var(--danger);
+            color: var(--danger);
+        }
+    </style>
+</head>
+<body>
+<div class="app">
+
+    <header class="header">
+        <h1>Weekly Planner</h1>
+        <div id="header-summary"></div>
+    </header>
+
+    <nav class="week-nav">
+        <button class="nav-btn" id="btn-prev">← Previous</button>
+        <div class="week-label">
+            <div class="wl-title" id="wl-title"></div>
+            <div class="wl-range"  id="wl-range"></div>
+        </div>
+        <button class="nav-btn" id="btn-next">Next →</button>
+    </nav>
+
+    <main class="days" id="days"></main>
+
+</div>
+<script>
+'use strict';
+
+const DAY_NAMES = ['Monday','Tuesday','Wednesday','Thursday','Friday','Saturday','Sunday'];
+const MON_SHORT = ['Jan','Feb','Mar','Apr','May','Jun','Jul','Aug','Sep','Oct','Nov','Dec'];
+
+let weekOffset = 0;
+
+/* ── Utilities ─────────────────────────────────────────── */
+
+function getMonday(base) {
+    const d = new Date(base);
+    d.setHours(0, 0, 0, 0);
+    const dow = d.getDay();                       // 0 = Sunday
+    d.setDate(d.getDate() + (dow === 0 ? -6 : 1 - dow));
+    return d;
+}
+
+function dateKey(d) {
+    const y = d.getFullYear();
+    const m = String(d.getMonth() + 1).padStart(2, '0');
+    const n = String(d.getDate()).padStart(2, '0');
+    return `planner-${y}-${m}-${n}`;
+}
+
+function shortDate(d) {
+    return `${MON_SHORT[d.getMonth()]} ${d.getDate()}`;
+}
+
+function isToday(d) {
+    const now = new Date();
+    return d.getFullYear() === now.getFullYear()
+        && d.getMonth()    === now.getMonth()
+        && d.getDate()     === now.getDate();
+}
+
+function esc(s) {
+    return s
+        .replace(/&/g, '&amp;')
+        .replace(/</g, '&lt;')
+        .replace(/>/g, '&gt;')
+        .replace(/"/g, '&quot;');
+}
+
+function load(key) {
+    try { return JSON.parse(localStorage.getItem(key)) || []; }
+    catch { return []; }
+}
+
+function persist(key, tasks) {
+    localStorage.setItem(key, JSON.stringify(tasks));
+}
+
+/* ── Badge HTML ────────────────────────────────────────── */
+
+function badgeHtml(isTodayCard, tasks) {
+    if (isTodayCard) return '<span class="badge badge-today">Today</span>';
+    const rem = tasks.filter(t => !t.done).length;
+    if (tasks.length && rem === 0) return '<span class="badge badge-done">Done ✓</span>';
+    if (rem > 0)                   return `<span class="badge badge-rem">${rem} left</span>`;
+    return '';
+}
+
+/* ── Header Summary ────────────────────────────────────── */
+
+function refreshSummary() {
+    const tasks = load(dateKey(new Date()));
+    const rem   = tasks.filter(t => !t.done).length;
+    const el    = document.getElementById('header-summary');
+    if (!tasks.length) {
+        el.textContent = 'No tasks planned for today';
+    } else if (!rem) {
+        el.textContent = 'All tasks done for today ✓';
+    } else {
+        el.textContent = `${rem} task${rem !== 1 ? 's' : ''} remaining today`;
+    }
+}
+
+/* ── Render Task List ──────────────────────────────────── */
+
+function renderTasks(key) {
+    const list = document.getElementById('tl-' + key);
+    if (!list) return;
+    const tasks = load(key);
+    list.innerHTML = '';
+    tasks.forEach((t, i) => {
+        const div = document.createElement('div');
+        div.className = 'task-item' + (t.done ? ' done' : '');
+        div.innerHTML = `
+            <input type="checkbox" class="task-cb"${t.done ? ' checked' : ''}>
+            <span class="task-text">${esc(t.text)}</span>
+            <button class="task-del" title="Remove task">✕</button>
+        `;
+        div.querySelector('.task-cb') .addEventListener('change', () => toggleTask(key, i));
+        div.querySelector('.task-del').addEventListener('click',  () => removeTask(key, i));
+        list.appendChild(div);
+    });
+}
+
+/* ── Task Mutations ────────────────────────────────────── */
+
+function addTask(key) {
+    const inp  = document.getElementById('inp-' + key);
+    const text = inp.value.trim();
+    if (!text) { inp.focus(); return; }
+    const tasks = load(key);
+    tasks.push({ text, done: false });
+    persist(key, tasks);
+    closeInput(key);
+    renderTasks(key);
+    refreshBadge(key);
+    refreshSummary();
+}
+
+function toggleTask(key, i) {
+    const tasks = load(key);
+    tasks[i].done = !tasks[i].done;
+    persist(key, tasks);
+    renderTasks(key);
+    refreshBadge(key);
+    refreshSummary();
+}
+
+function removeTask(key, i) {
+    const tasks = load(key);
+    tasks.splice(i, 1);
+    persist(key, tasks);
+    renderTasks(key);
+    refreshBadge(key);
+    refreshSummary();
+}
+
+/* ── Badge Refresh (without full re-render) ────────────── */
+
+function refreshBadge(key) {
+    const card = document.querySelector(`.day-card[data-key="${key}"]`);
+    if (!card || card.classList.contains('today')) return;
+    const hd  = card.querySelector('.day-hd');
+    const old = hd.querySelector('.badge');
+    if (old) old.remove();
+    const html = badgeHtml(false, load(key));
+    if (html) hd.insertAdjacentHTML('beforeend', html);
+}
+
+/* ── Input Show / Hide ─────────────────────────────────── */
+
+function openInput(key) {
+    document.querySelector(`[data-add="${key}"]`).style.display = 'none';
+    document.getElementById('row-' + key).classList.add('open');
+    document.getElementById('inp-' + key).focus();
+}
+
+function closeInput(key) {
+    document.getElementById('inp-' + key).value = '';
+    document.getElementById('row-' + key).classList.remove('open');
+    document.querySelector(`[data-add="${key}"]`).style.display = '';
+}
+
+/* ── Render Week ───────────────────────────────────────── */
+
+function renderWeek() {
+    const now = new Date();
+    const mon = getMonday(now);
+    mon.setDate(mon.getDate() + weekOffset * 7);
+
+    const sun = new Date(mon);
+    sun.setDate(sun.getDate() + 6);
+
+    // Navigation label
+    const knownTitles = { '-1': 'Last Week', '0': 'This Week', '1': 'Next Week' };
+    document.getElementById('wl-title').textContent =
+        knownTitles[String(weekOffset)]
+        ?? (weekOffset > 0 ? `+${weekOffset} weeks` : `${weekOffset} weeks`);
+    document.getElementById('wl-range').textContent =
+        `${shortDate(mon)} – ${shortDate(sun)}`;
+
+    // Build day cards
+    const container = document.getElementById('days');
+    container.innerHTML = '';
+
+    for (let i = 0; i < 7; i++) {
+        const date       = new Date(mon);
+        date.setDate(date.getDate() + i);
+        const key        = dateKey(date);
+        const todayCard  = isToday(date);
+        const tasks      = load(key);
+
+        const card = document.createElement('div');
+        card.className   = 'day-card' + (todayCard ? ' today' : '');
+        card.dataset.key = key;
+
+        card.innerHTML = `
+            <div class="day-hd">
+                <div>
+                    <div class="day-name">${DAY_NAMES[i]}</div>
+                    <div class="day-date">${shortDate(date)}</div>
+                </div>
+                ${badgeHtml(todayCard, tasks)}
+            </div>
+            <div class="task-list" id="tl-${key}"></div>
+            <div class="add-section">
+                <button class="add-btn" data-add="${key}">
+                    <svg width="11" height="11" viewBox="0 0 11 11" fill="none"
+                         stroke="currentColor" stroke-width="2.2" stroke-linecap="round">
+                        <line x1="5.5" y1="1"   x2="5.5" y2="10"/>
+                        <line x1="1"   y1="5.5" x2="10"  y2="5.5"/>
+                    </svg>
+                    Add Task
+                </button>
+                <div class="input-row" id="row-${key}">
+                    <input
+                        class="task-input"
+                        id="inp-${key}"
+                        type="text"
+                        placeholder="What needs to get done?"
+                        autocomplete="off"
+                    >
+                    <button class="btn-confirm" title="Add task">✓</button>
+                    <button class="btn-cancel"  title="Cancel">✕</button>
+                </div>
+            </div>
+        `;
+
+        container.appendChild(card);
+        renderTasks(key);
+
+        // Wire up events for this card
+        card.querySelector('[data-add]')   .addEventListener('click',  () => openInput(key));
+        card.querySelector('.btn-confirm') .addEventListener('click',  () => addTask(key));
+        card.querySelector('.btn-cancel')  .addEventListener('click',  () => closeInput(key));
+        card.querySelector('.task-input')  .addEventListener('keydown', e => {
+            if (e.key === 'Enter')  addTask(key);
+            if (e.key === 'Escape') closeInput(key);
+        });
+    }
+}
+
+/* ── Navigation ────────────────────────────────────────── */
+
+document.getElementById('btn-prev').addEventListener('click', () => { weekOffset--; renderWeek(); });
+document.getElementById('btn-next').addEventListener('click', () => { weekOffset++; renderWeek(); });
+
+/* ── Init ──────────────────────────────────────────────── */
+
+renderWeek();
+refreshSummary();
+</script>
+</body>
+</html>
