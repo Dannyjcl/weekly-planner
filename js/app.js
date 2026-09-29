@@ -452,7 +452,8 @@
         const calendar = `<div class="calendar">
             <div class="cal-head"><div></div>${TB.DAYS_SHORT.map((d, i) => {
                 const over = B.byDay[i] > 24;
-                return `<div class="${isThisWeek && i === todayIdx ? 'today' : ''}"><b>${d} ${dayDate(i).getDate()}</b><span class="${over ? 'over' : ''}">${H(B.byDay[i])} h</span></div>`;
+                const cls = [isThisWeek && i === todayIdx ? 'today' : '', i === ui.agendaDay ? 'selected' : ''].join(' ');
+                return `<div class="${cls}" role="button" tabindex="0" data-action="agenda-day" data-day="${i}" title="Show free time for ${TB.DAYS[i]}"><b>${d} ${dayDate(i).getDate()}</b><span class="${over ? 'over' : ''}">${H(B.byDay[i])} h</span></div>`;
             }).join('')}</div>
             <div class="cal-scroll"><div class="cal-body" style="--hour:${HOUR_PX}px">
                 <div class="cal-hours">${Array.from({ length: 24 }, (_, h) => `<div>${String(h).padStart(2, '0')}:00</div>`).join('')}</div>
@@ -485,7 +486,36 @@
             ${calendar}${agenda}
             <div class="unsched-note">${unsched.length
                 ? `Also budgeted without a time slot: ${unsched.map(c => `<b>${esc(c.name)} ${signed(c.adjust)} h</b>`).join(' · ')}. <button class="btn sm ghost" data-tab-go="budget">Edit in Budget</button>`
-                : 'Tip: categories you don’t want to schedule block-by-block (meals, commute) can be budgeted as unscheduled hours in Budget & Targets.'}</div>`;
+                : 'Tip: categories you don’t want to schedule block-by-block (meals, commute) can be budgeted as unscheduled hours in Budget & Targets.'}</div>
+            ${dayFreeHtml(plan, unsched)}`;
+    }
+
+    /** Green summary of open (unbooked) calendar time for the selected day. */
+    function dayFreeHtml(plan, unsched) {
+        const d = ui.agendaDay;
+        const acts = plan ? plan.activities : [];
+        const open = TB.dayOpenTime(acts, d);
+        const clock = m => (m === TB.DAY_MIN ? '24:00' : TB.formatTime(m));
+        const windows = open.windows.filter(w => w.minutes >= 15);
+        const longest = windows.slice().sort((x, y) => y.minutes - x.minutes)[0];
+        const freeBlocks = cat('free') ? pieces(plan).filter(p => p.day === d && p.a.categoryId === 'free').reduce((t, p) => t + p.end - p.start, 0) : 0;
+        const strip = open.windows.map(w =>
+            `<i style="left:${w.start / TB.DAY_MIN * 100}%;width:${w.minutes / TB.DAY_MIN * 100}%" data-tip="Open · ${clock(w.start)}–${clock(w.end)} · ${H(w.minutes / 60)} h"></i>`).join('');
+        const prev = (d + 6) % 7;
+        const next = (d + 1) % 7;
+        return `<section class="dayfree${open.freeMin === 0 ? ' none' : ''}" aria-live="polite">
+            <div class="df-top">
+                <button class="btn sm ghost" data-action="agenda-day" data-day="${prev}" aria-label="Previous day">‹ ${TB.DAYS_SHORT[prev]}</button>
+                <span class="df-label">Free time · ${TB.DAYS[d]} ${fmtDate(dayDate(d))}</span>
+                <button class="btn sm ghost" data-action="agenda-day" data-day="${next}" aria-label="Next day">${TB.DAYS_SHORT[next]} ›</button>
+            </div>
+            <div class="df-main"><span class="df-num">${H(open.free)}</span><span class="df-unit">${open.free === 1 ? 'hour' : 'hours'} open</span></div>
+            <div class="df-strip" aria-hidden="true">${strip}</div>
+            <div class="df-scale"><span>00</span><span>06</span><span>12</span><span>18</span><span>24</span></div>
+            <div class="df-sub">${H(open.booked)} h of ${TB.DAYS[d]} is booked on the calendar${longest ? ` · longest open window <b>${clock(longest.start)}–${clock(longest.end)}</b> (${H(longest.minutes / 60)} h)` : ''}${freeBlocks ? ` · plus ${H(freeBlocks / 60)} h already blocked as Free Time` : ''}.</div>
+            ${windows.length ? `<div class="df-windows">${windows.map(w => `<span>${clock(w.start)}–${clock(w.end)} · ${H(w.minutes / 60)}h</span>`).join('')}</div>` : ''}
+            ${unsched.some(c => c.adjust > 0) ? '<div class="df-note">Weekly hours budgeted without a time slot aren’t tied to a day, so they aren’t subtracted here.</div>' : ''}
+        </section>`;
     }
 
     /* ── Budget & targets ──────────────────────────────────── */
@@ -1274,6 +1304,10 @@
 
         document.addEventListener('keydown', e => {
             if (e.key === 'Enter' && e.target.id === 'scen-name') actions['create-scenario'](e.target);
+            if ((e.key === 'Enter' || e.key === ' ') && e.target.matches('div[role=button][data-action]')) {
+                e.preventDefault();
+                actions[e.target.dataset.action](e.target);
+            }
         });
 
         $('#import-file').addEventListener('change', e => {
