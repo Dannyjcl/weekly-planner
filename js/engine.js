@@ -540,7 +540,7 @@
 
         const absorbedMin = Math.min(hoursToMin(before.unallocated), Math.max(0, hoursToMin(after.used) - hoursToMin(before.used)));
         return {
-            before, after, applied,
+            before, after, applied, plan: next,
             netChange: minToHours(hoursToMin(after.used) - hoursToMin(before.used)),
             absorbedByUnallocated: minToHours(absorbedMin),
             fits: after.state !== 'over',
