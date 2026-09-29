@@ -55,6 +55,17 @@
             letter-spacing: -0.2px;
         }
 
+        .back-link {
+            display: inline-block;
+            margin-bottom: 8px;
+            font-size: 13px;
+            font-weight: 600;
+            color: rgba(255, 255, 255, 0.9);
+            text-decoration: none;
+        }
+
+        .back-link:hover { color: #fff; text-decoration: underline; }
+
         #header-summary {
             margin-top: 5px;
             font-size: 13px;
@@ -342,6 +353,7 @@
 <div class="app">
 
     <header class="header">
+        <a class="back-link" href="index.html">← TimeBudget</a>
         <h1>Weekly Planner</h1>
         <div id="header-summary"></div>
     </header>
