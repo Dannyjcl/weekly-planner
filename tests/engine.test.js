@@ -296,3 +296,26 @@ test('sanitizeState drops corrupt data', () => {
     assert.equal(s.scenarios.length, 1);
     assert.deepEqual(TB.sanitizeState(null).categories, []);
 });
+
+test('dayOpenTime: 24 h minus booked time, overlaps counted once', () => {
+    const acts = [
+        act('sleep', 0, '23:00', '07:00'),          // Mon 23–24 + Tue 00–07
+        act('classes', 1, '09:00', '12:00'),
+        act('meals', 1, '11:00', '13:00'),          // overlaps class by 1 h
+        act('practice', 1, '15:00', '17:00'),
+    ];
+    const tue = TB.dayOpenTime(acts, 1);
+    assert.equal(tue.booked, 7 + 4 + 2);            // 00–07, 09–13, 15–17
+    assert.equal(tue.free, 11);
+    assert.deepEqual(tue.windows.map(w => [TB.formatTime(w.start), w.minutes / 60]),
+        [['07:00', 2], ['13:00', 2], ['17:00', 7]]);
+    assert.equal(TB.dayOpenTime(acts, 0).free, 23);
+    assert.equal(TB.dayOpenTime([], 3).free, 24);
+});
+
+test('dayOpenTime: demo week free time per day', () => {
+    const plan = TB.demoPlan();
+    const free = [0, 1, 2, 3, 4, 5, 6].map(d => TB.dayOpenTime(plan.activities, d).free);
+    const byDay = TB.computeBudget(plan, cats).byDay;
+    free.forEach((f, d) => assert.equal(f, 24 - byDay[d]));   // no overlaps in demo
+});

@@ -369,6 +369,31 @@ main { max-width: 1320px; margin: 0 auto; padding: 20px 20px 64px; }
 .unsched-note { margin-top: 12px; font-size: 12.5px; color: var(--muted); }
 .unsched-note b { color: var(--text-2); font-weight: 500; }
 
+/* Day free-time box (bottom of Schedule) */
+.cal-head div[data-action] { cursor: pointer; }
+.cal-head div[data-action]:hover { background: var(--panel-2); }
+.cal-head div.selected { box-shadow: inset 0 -2px 0 var(--good); }
+.dayfree {
+    margin-top: 16px; border: 1px solid rgba(47,191,113,.5); border-radius: var(--radius);
+    background: linear-gradient(180deg, rgba(47,191,113,.16), rgba(47,191,113,.06)); padding: 16px 18px;
+}
+.dayfree.none { border-color: var(--line-2); background: var(--panel); }
+.df-top { display: flex; align-items: center; justify-content: space-between; gap: 8px; }
+.df-label { font-size: 11px; font-weight: 600; letter-spacing: .1em; text-transform: uppercase; color: var(--good); text-align: center; }
+.dayfree.none .df-label { color: var(--muted); }
+.df-main { display: flex; align-items: baseline; gap: 10px; margin-top: 6px; }
+.df-num { font-family: var(--mono); font-weight: 700; font-size: 48px; line-height: 1; color: var(--good); letter-spacing: -0.03em; }
+.dayfree.none .df-num { color: var(--muted); }
+.df-unit { font-size: 14px; color: var(--text-2); }
+.df-strip { position: relative; height: 12px; border-radius: 4px; background: var(--panel-3); margin-top: 14px; overflow: hidden; }
+.df-strip i { position: absolute; top: 0; bottom: 0; background: var(--good); }
+.df-scale { display: flex; justify-content: space-between; font-family: var(--mono); font-size: 10px; color: var(--faint); margin-top: 4px; }
+.df-sub { font-size: 13px; color: var(--text-2); margin-top: 10px; }
+.df-sub b { color: var(--text); font-family: var(--mono); font-weight: 600; }
+.df-windows { display: flex; flex-wrap: wrap; gap: 6px; margin-top: 10px; }
+.df-windows span { font-family: var(--mono); font-size: 11.5px; padding: 3px 8px; border-radius: 999px; background: rgba(47,191,113,.14); color: #bff0d3; }
+.df-note { font-size: 11.5px; color: var(--faint); margin-top: 10px; }
+
 /* ── Tables ───────────────────────────────────────────────── */
 
 .table-wrap { overflow-x: auto; margin: 0 -4px; }

@@ -279,6 +279,33 @@
     }
 
     /**
+     * Open (unbooked) calendar time on one day: 24 h minus the union of every
+     * block touching that day, so overlapping blocks are only counted once.
+     * Unscheduled weekly hours have no day and are not included.
+     * Returns minutes plus the list of open windows (clock minutes, end may be 1440).
+     */
+    function dayOpenTime(activities, day) {
+        const lo = day * DAY_MIN;
+        const hi = lo + DAY_MIN;
+        const booked = [];
+        activities.forEach(a => segments(a).forEach(([s, e]) => {
+            const cs = Math.max(s, lo);
+            const ce = Math.min(e, hi);
+            if (ce > cs) booked.push([cs - lo, ce - lo]);
+        }));
+        booked.sort((x, y) => x[0] - y[0]);
+        const windows = [];
+        let cursor = 0;
+        booked.forEach(([s, e]) => {
+            if (s > cursor) windows.push({ start: cursor, end: s, minutes: s - cursor });
+            cursor = Math.max(cursor, e);
+        });
+        if (cursor < DAY_MIN) windows.push({ start: cursor, end: DAY_MIN, minutes: DAY_MIN - cursor });
+        const freeMin = windows.reduce((t, w) => t + w.minutes, 0);
+        return { freeMin, bookedMin: DAY_MIN - freeMin, free: minToHours(freeMin), booked: minToHours(DAY_MIN - freeMin), windows };
+    }
+
+    /**
      * Informational status against optional limits.
      * - min only:    below | met
      * - max only:    met | above
@@ -667,7 +694,7 @@
         WEEK_HOURS, DAY_MIN, WEEK_MIN, DAYS, DAYS_SHORT, TYPES, CLASSIFICATIONS,
         hoursToMin, minToHours, round2, fmtHours, parseTime, formatTime, durationMin, uid, clone,
         validateCategory, sanitizeCategory, validateActivity, sanitizeActivity, sanitizePlan, emptyPlan,
-        effectiveType, segments, findOverlaps, minutesByDay, targetStatus, hoursToGoal,
+        effectiveType, segments, findOverlaps, minutesByDay, dayOpenTime, targetStatus, hoursToGoal,
         computeBudget, insights, compareBudgets, whatIf,
         weekKey, parseWeekKey, shiftWeek, history, sanitizeState,
         defaultCategories, demoPlan,
