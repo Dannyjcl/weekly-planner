@@ -1,0 +1,10 @@
+{
+  "name": "timebudget",
+  "version": "1.0.0",
+  "private": true,
+  "description": "168 hours per week as a finite resource — a time-budget planner for student-athletes.",
+  "scripts": {
+    "test": "node --test tests/*.test.js",
+    "start": "npx --yes serve -l 8080 ."
+  }
+}
