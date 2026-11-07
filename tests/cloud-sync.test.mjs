@@ -51,7 +51,9 @@ function makeDevice(server, name, { appId = "budget", keys = ["a", "b"], prefixe
   const dev = { name, store, remoteChanges: 0 };
   const fb = {
     initializeApp: () => ({}), getApps: () => [],
-    getAuth: () => ({}), GoogleAuthProvider: class { setCustomParameters() {} },
+    getAuth: () => ({}), initializeAuth: () => ({}), indexedDBLocalPersistence: {}, browserLocalPersistence: {}, browserPopupRedirectResolver: {},
+    signInWithEmailAndPassword: async () => { authCb({ uid: "u1", email: "d@x" }); }, createUserWithEmailAndPassword: async () => {}, sendPasswordResetEmail: async () => {},
+    GoogleAuthProvider: class { setCustomParameters() {} },
     signInWithPopup: async () => { authCb({ uid: "u1", email: "d@x" }); },
     signInWithRedirect: async () => {}, signOut: async () => authCb(null),
     onAuthStateChanged: (_a, cb) => { authCb = cb; },
@@ -75,7 +77,7 @@ function makeDevice(server, name, { appId = "budget", keys = ["a", "b"], prefixe
     summary: () => ({ v: store.get(keys[0]) }),
     onRemoteChange: () => { dev.remoteChanges++; },
   });
-  dev.signIn = () => dev.api.signIn();
+  dev.signIn = () => dev.api.signInEmail("d@x", "pw1234");
   dev.set = (k, v) => { store.set(k, v); dev.api.save(); };
   return dev;
 }

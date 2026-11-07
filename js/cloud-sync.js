@@ -20,7 +20,9 @@
  */
 import { initializeApp, getApps } from "https://www.gstatic.com/firebasejs/10.12.0/firebase-app.js";
 import {
-  getAuth, GoogleAuthProvider, signInWithPopup, signInWithRedirect, signOut, onAuthStateChanged,
+  initializeAuth, getAuth, indexedDBLocalPersistence, browserLocalPersistence, browserPopupRedirectResolver,
+  GoogleAuthProvider, signInWithPopup, signOut, onAuthStateChanged,
+  signInWithEmailAndPassword, createUserWithEmailAndPassword, sendPasswordResetEmail,
 } from "https://www.gstatic.com/firebasejs/10.12.0/firebase-auth.js";
 import {
   initializeFirestore, getFirestore, persistentLocalCache, persistentMultipleTabManager,
@@ -64,7 +66,14 @@ export function startCloudSync(opts) {
   const owns = (k) => keys.includes(k) || prefixes.some((p) => k.startsWith(p));
 
   const fbApp = getApps().length ? getApps()[0] : initializeApp(firebaseConfig);
-  const auth = getAuth(fbApp);
+  // No popup resolver at startup: it would load an iframe from firebaseapp.com,
+  // which some networks (e.g. campus Wi-Fi) block. It's only passed to the Google popup.
+  let auth;
+  try {
+    auth = initializeAuth(fbApp, { persistence: [indexedDBLocalPersistence, browserLocalPersistence] });
+  } catch (e) {
+    auth = getAuth(fbApp);
+  }
   let db;
   try {
     db = initializeFirestore(fbApp, {
@@ -265,20 +274,20 @@ export function startCloudSync(opts) {
   const api = {
     /** call after every localStorage write; batches and uploads */
     save: schedule,
-    signIn: async () => {
+    /** email + password: no popups, works in home-screen apps and on networks that block firebaseapp.com */
+    signInEmail: async (email, password, create = false) => {
+      return create
+        ? createUserWithEmailAndPassword(auth, email, password)
+        : signInWithEmailAndPassword(auth, email, password);
+    },
+    resetPassword: (email) => sendPasswordResetEmail(auth, email),
+    /** Google popup: fine on a laptop; unreliable on iPhone home-screen apps and blocked networks */
+    signInGoogle: async () => {
       const provider = new GoogleAuthProvider();
       provider.setCustomParameters({ prompt: "select_account" });
-      try {
-        await signInWithPopup(auth, provider);
-      } catch (e) {
-        if (e.code === "auth/popup-blocked" || e.code === "auth/operation-not-supported-in-this-environment") {
-          return signInWithRedirect(auth, provider);
-        }
-        if (e.code !== "auth/popup-closed-by-user" && e.code !== "auth/cancelled-popup-request") {
-          alert("Sign-in failed: " + (e.code || e.message));
-        }
-      }
+      return signInWithPopup(auth, provider, browserPopupRedirectResolver);
     },
+    signIn: () => openSignInSheet(api),
     signOut: () => { flush(); return signOut(auth); },
     get user() { return user; },
     get status() { return status; },
@@ -329,10 +338,81 @@ function mountPill(api, { bg = "#2C2420", fg = "#fff", position = "bottom" } = {
   };
   api.onStatus((s) => { el.textContent = LABEL[s] || s; });
   el.onclick = () => {
-    if (!api.user) return api.signIn();
+    if (!api.user) return openSignInSheet(api, { bg, fg });
     if (api.status === "error") return location.reload();
     if (confirm(`Signed in as ${api.user.email}.\n\nSign out on this device? (Your data stays saved here and in the cloud.)`)) api.signOut();
   };
   const add = () => document.body.appendChild(el);
   document.body ? add() : document.addEventListener("DOMContentLoaded", add);
+}
+
+/* ── sign-in sheet (email + password, Google as a fallback) ─── */
+
+const AUTH_MSG = {
+  "auth/invalid-email": "That email doesn't look right.",
+  "auth/missing-password": "Enter a password.",
+  "auth/weak-password": "Password needs at least 6 characters.",
+  "auth/email-already-in-use": "That email already has an account. Tap Sign in instead.",
+  "auth/invalid-credential": "Wrong email or password. New here? Tap Create account.",
+  "auth/wrong-password": "Wrong password.",
+  "auth/user-not-found": "No account with that email. Tap Create account.",
+  "auth/too-many-requests": "Too many tries. Wait a minute and try again.",
+  "auth/network-request-failed": "No connection. Check your internet and try again.",
+  "auth/operation-not-allowed": "Email sign-in isn't turned on in Firebase yet (Authentication → Sign-in method → Email/Password).",
+  "auth/popup-blocked": "Pop-up was blocked. Use email sign-in above.",
+};
+
+function openSignInSheet(api, { bg = "#2C2420", fg = "#fff" } = {}) {
+  if (document.getElementById("cloudsync-sheet")) return;
+  const wrap = document.createElement("div");
+  wrap.id = "cloudsync-sheet";
+  wrap.style.cssText = "position:fixed;inset:0;z-index:10000;background:rgba(0,0,0,.45);display:flex;align-items:flex-end;justify-content:center;font:15px/1.4 system-ui,-apple-system,sans-serif";
+  wrap.innerHTML = `
+    <form style="background:#fff;color:#222;width:100%;max-width:420px;border-radius:18px 18px 0 0;padding:20px 20px calc(20px + env(safe-area-inset-bottom));box-shadow:0 -6px 30px rgba(0,0,0,.2)">
+      <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:4px">
+        <b style="font-size:18px">Sync across devices</b>
+        <button type="button" data-x style="border:none;background:none;font-size:22px;color:#888;cursor:pointer">×</button>
+      </div>
+      <div style="font-size:13px;color:#777;margin-bottom:14px">Use the same email &amp; password on every device. One account works for both your apps.</div>
+      <input name="email" type="email" autocomplete="username" placeholder="Email" required
+        style="width:100%;box-sizing:border-box;padding:12px;border:1.5px solid #ddd;border-radius:10px;font-size:16px;margin-bottom:8px">
+      <input name="password" type="password" autocomplete="current-password" placeholder="Password (6+ characters)" required minlength="6"
+        style="width:100%;box-sizing:border-box;padding:12px;border:1.5px solid #ddd;border-radius:10px;font-size:16px">
+      <div data-msg style="font-size:13px;color:#c0392b;min-height:18px;margin:8px 0 4px"></div>
+      <div style="display:flex;gap:8px">
+        <button type="submit" data-signin style="flex:1;padding:12px;border:none;border-radius:10px;background:${bg};color:${fg};font-weight:700;font-size:15px;cursor:pointer">Sign in</button>
+        <button type="button" data-create style="flex:1;padding:12px;border:1.5px solid ${bg};border-radius:10px;background:#fff;color:#222;font-weight:600;font-size:15px;cursor:pointer">Create account</button>
+      </div>
+      <div style="display:flex;justify-content:space-between;margin-top:14px;font-size:13px">
+        <a href="#" data-reset style="color:#777">Forgot password?</a>
+        <a href="#" data-google style="color:#777">Use Google instead (laptop)</a>
+      </div>
+    </form>`;
+  document.body.appendChild(wrap);
+  const form = wrap.querySelector("form");
+  const msg = wrap.querySelector("[data-msg]");
+  const close = () => wrap.remove();
+  const show = (t, ok) => { msg.style.color = ok ? "#2e8b57" : "#c0392b"; msg.textContent = t; };
+  const err = (e) => show(AUTH_MSG[e.code] || ("Couldn't sign in: " + (e.code || e.message)));
+  const creds = () => [form.email.value.trim(), form.password.value];
+  const run = async (fn) => {
+    form.querySelectorAll("button").forEach((b) => (b.disabled = true));
+    show("Working…", true);
+    try { await fn(); close(); } catch (e) { err(e); }
+    form.querySelectorAll("button").forEach((b) => (b.disabled = false));
+  };
+  wrap.addEventListener("click", (e) => { if (e.target === wrap || e.target.closest("[data-x]")) close(); });
+  form.addEventListener("submit", (e) => { e.preventDefault(); run(() => api.signInEmail(...creds())); });
+  wrap.querySelector("[data-create]").onclick = () => {
+    if (!form.reportValidity()) return;
+    run(() => api.signInEmail(...creds(), true));
+  };
+  wrap.querySelector("[data-reset]").onclick = async (e) => {
+    e.preventDefault();
+    const email = form.email.value.trim();
+    if (!email) return show("Type your email first, then tap Forgot password.");
+    try { await api.resetPassword(email); show("Reset email sent. Check your inbox.", true); } catch (er) { err(er); }
+  };
+  wrap.querySelector("[data-google]").onclick = (e) => { e.preventDefault(); run(() => api.signInGoogle()); };
+  setTimeout(() => form.email.focus(), 50);
 }
