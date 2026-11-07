@@ -56,6 +56,7 @@
         try {
             localStorage.setItem(STORE_KEY, JSON.stringify(state));
             localStorage.setItem(UI_KEY, JSON.stringify({ tab: ui.tab, series: ui.series }));
+            if (window.CloudSync) window.CloudSync.save();
         } catch (e) {
             toast('Could not save — browser storage is unavailable or full.');
         }
@@ -1349,6 +1350,11 @@
         // Keep "today" fresh if the tab stays open across midnight/weeks.
         window.addEventListener('storage', ev => { if (ev.key === STORE_KEY) { loadState(); render(); } });
     }
+
+    /* ── Cloud sync hooks (used by js/planner-sync.js) ──────── */
+
+    // Another device changed the data: reload state and redraw.
+    window.plannerReload = () => { loadState(); render(); };
 
     loadState();
     bind();

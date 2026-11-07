@@ -421,6 +421,7 @@ function load(key) {
 
 function persist(key, tasks) {
     localStorage.setItem(key, JSON.stringify(tasks));
+    if (window.CloudSync) window.CloudSync.save();
 }
 
 /* ── Badge HTML ────────────────────────────────────────── */
@@ -616,6 +617,11 @@ document.getElementById('btn-next').addEventListener('click', () => { weekOffset
 
 renderWeek();
 refreshSummary();
+
+// Another device changed tasks: redraw (called by js/planner-sync.js)
+window.plannerReload = () => { renderWeek(); refreshSummary(); };
 </script>
+<script src="js/engine.js"></script>
+<script type="module" src="js/planner-sync.js"></script>
 </body>
 </html>
