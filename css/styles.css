@@ -567,3 +567,14 @@ footer.foot .spacer { flex: 1; }
     .kpis { grid-template-columns: repeat(2, minmax(0, 1fr)); }
     footer.foot { padding: 0 16px 28px; }
 }
+
+/* Cross-app card: this month's numbers pulled from the budget app */
+.xapp { display: flex; align-items: baseline; gap: 12px; flex-wrap: wrap; text-decoration: none; color: var(--text-2);
+    background: var(--panel); border: 1px solid var(--line); border-radius: 10px; padding: 10px 14px; margin-bottom: 14px; font-size: 13px; }
+.xapp[hidden] { display: none; }
+.xapp:hover { border-color: var(--line-2); }
+.xapp-k { font-family: 'JetBrains Mono', monospace; font-size: 11px; letter-spacing: .08em; color: var(--muted); }
+.xapp b { color: var(--accent); font-family: 'JetBrains Mono', monospace; font-size: 15px; }
+.xapp b.xapp-over { color: #ff5d5d; }
+.xapp-d { color: var(--muted); }
+.xapp-go { margin-left: auto; color: var(--muted); }

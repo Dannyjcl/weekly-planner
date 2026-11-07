@@ -17,7 +17,7 @@ unallocated    = discretionary − allocated      (negative ⇒ over-allocated)
 - **Scenarios** – copies of the base week (Exam Week, Tournament Week…) that you can change without touching the base week. A side-by-side table shows the differences, and you can type new hours straight into it.
 - **What-If** – deterministic questions such as "add 5 h of study" or "set work to 10 h". It shows whether the change fits, and if it doesn't, which flexible categories would have to shrink (taking from the most slack above each minimum first).
 - **History** – every week you plan is stored, and you can chart trends for study, sleep, athletics, social, discretionary time and more.
-- Data lives in `localStorage` and can be exported and imported as JSON. The original daily task list is still at `tasks.html`.
+- Data lives in `localStorage` and can be exported and imported as JSON. **Cloud sync:** tap *Sign in to sync* (bottom right) to mirror it to Firebase/Firestore and keep every device in sync live. The Overview also shows this month's numbers pulled from the [Semester Budget](https://dannyjcl.github.io/semester-budget/) app. The original daily task list is still at `tasks.html`.
 
 ## Run it
 
@@ -43,3 +43,5 @@ The tests in `tests/engine.test.js` cover the reference example (114 h fixed →
 | `js/app.js` | UI: state, rendering, dialogs, events |
 | `css/styles.css` | Dark dashboard theme and responsive layout |
 | `index.html` | App shell |
+| `js/cloud-sync.js` | Shared Firebase sync module (Google sign-in, live Firestore sync, cross-app reads) |
+| `js/planner-sync.js` | Planner's sync config + weekly summary published for other apps |
