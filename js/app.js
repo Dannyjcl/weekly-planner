@@ -7,7 +7,15 @@
 
     const STORE_KEY = 'timebudget:v1';
     const UI_KEY = 'timebudget:ui';
-    const HOUR_PX = 36;
+    // Schedule sizing: hour rows stretch to fill the screen, within these bounds.
+    const HOUR_MIN_PX = 40;
+    const HOUR_MAX_PX = 72;
+    const DAY_START_HOUR = 6;      // "Day" range starts here unless something is scheduled earlier
+    let hourPx = 44;               // current row height, recomputed on every schedule render
+    let calRange = { start: 0, end: 24 * 60 };
+    let calDefaultScroll = 0;
+    let calResetScroll = false;
+    let calTop = null;             // page offset of the calendar from the last render
     const MON = ['Jan', 'Feb', 'Mar', 'Apr', 'May', 'Jun', 'Jul', 'Aug', 'Sep', 'Oct', 'Nov', 'Dec'];
     const PRESETS = ['Normal Week', 'Exam Week', 'Game Week', 'Tournament Week', 'Internship Week'];
     const AGG_SERIES = {
@@ -31,6 +39,7 @@
         compareId: null,
         whatif: null,
         series: ['study', 'sleep', 'athletics', 'social', 'discretionary'],
+        calRange: 'day',           // 'day' (06–24) or 'full' (00–24)
     };
 
     function loadState() {
@@ -49,13 +58,14 @@
             const u = JSON.parse(localStorage.getItem(UI_KEY)) || {};
             if (typeof u.tab === 'string') ui.tab = u.tab;
             if (Array.isArray(u.series)) ui.series = u.series.filter(s => typeof s === 'string');
+            if (u.calRange === 'full' || u.calRange === 'day') ui.calRange = u.calRange;
         } catch (e) { /* ignore */ }
     }
 
     function save() {
         try {
             localStorage.setItem(STORE_KEY, JSON.stringify(state));
-            localStorage.setItem(UI_KEY, JSON.stringify({ tab: ui.tab, series: ui.series }));
+            localStorage.setItem(UI_KEY, JSON.stringify({ tab: ui.tab, series: ui.series, calRange: ui.calRange }));
             if (window.CloudSync) window.CloudSync.save();
         } catch (e) {
             toast('Could not save — browser storage is unavailable or full.');
@@ -187,7 +197,8 @@
             }
         }
         const sc = $('.cal-scroll');
-        if (sc) sc.scrollTop = calScroll !== null ? calScroll : 6 * HOUR_PX;
+        if (sc) sc.scrollTop = calScroll !== null && !calResetScroll ? calScroll : calDefaultScroll;
+        calResetScroll = false;
     }
 
     function renderHeader() {
@@ -424,6 +435,33 @@
         return list;
     }
 
+    /** Visible time window and row height so the week fits the screen. */
+    function calendarGeometry(all) {
+        let start = 0;
+        if (ui.calRange === 'day') {
+            // Start at 06:00, or earlier if a block that isn't an overnight carry-over starts before then.
+            const early = all.filter(p => !p.cont && p.start < DAY_START_HOUR * 60).map(p => p.start);
+            start = Math.floor(Math.min(DAY_START_HOUR * 60, ...early) / 60) * 60;
+        }
+        const end = TB.DAY_MIN;
+        const top = $('.topbar') ? $('.topbar').offsetHeight : 100;
+        document.documentElement.style.setProperty('--topbar-h', top + 'px');
+        // Fill the space under the toolbar when there's room; otherwise fill the screen below
+        // the sticky top bar (one short page scroll brings the whole calendar into view).
+        const belowToolbar = calTop !== null ? window.innerHeight - calTop - 16 : 0;
+        const height = belowToolbar >= 520 ? belowToolbar : Math.max(440, window.innerHeight - top - 32);
+        const headH = 46;
+        const px = Math.min(HOUR_MAX_PX, Math.max(HOUR_MIN_PX, (height - headH) / ((end - start) / 60)));
+        return { start, end, height, px: Math.floor(px) };
+    }
+
+    function blockTier(h) {
+        if (h < 18) return 'xs';   // colour sliver only; details in tooltip / screen reader label
+        if (h < 34) return 'sm';   // one line: name + start time
+        if (h < 58) return 'md';   // name / time · duration
+        return 'lg';               // name (up to 2 lines) / time / category
+    }
+
     function renderSchedule() {
         const plan = activePlan();
         const B = budget(plan);
@@ -434,32 +472,53 @@
         const isThisWeek = ui.week === todayKey;
         const scheduled = B.categories.reduce((t, c) => t + c.scheduled, 0);
 
+        const geo = calendarGeometry(all);
+        hourPx = geo.px;
+        calRange = { start: geo.start, end: geo.end };
+        const firstHour = geo.start / 60;
+        const hours = (geo.end - geo.start) / 60;
+        const y = m => (m - geo.start) / 60 * hourPx;
+        calDefaultScroll = Math.max(0, y(Math.max(geo.start, 7 * 60)) - 8);
+
         const blockHtml = p => {
+            const s = Math.max(p.start, geo.start);
+            const e = Math.min(p.end, geo.end);
+            if (e <= s) return '';
             const c = cat(p.a.categoryId);
-            const top = p.start / 60 * HOUR_PX;
-            const height = Math.max((p.end - p.start) / 60 * HOUR_PX - 2, 14);
+            const top = y(s) + 1;
+            const height = Math.max(y(e) - y(s) - 2, 6);
+            const tier = blockTier(height);
             const w = 100 / p.lanes;
             const dur = TB.durationMin(p.a.start, p.a.end) / 60;
             const flex = typeOf(p.a) === 'flexible';
             const clash = clashIds.has(p.a.id);
+            const carried = p.cont || p.start < geo.start;
             const tip = `${p.a.name} · ${c.name} · ${flex ? 'flexible' : 'fixed'}\n${TB.DAYS_SHORT[p.a.day]} ${timeRange(p.a)} · ${H(dur)} h${clash ? ' · overlaps another block' : ''}`;
-            return `<div class="block${flex ? ' flex' : ''}${clash ? ' clash' : ''}" data-action="edit-act" data-id="${esc(p.a.id)}" data-tip="${esc(tip)}"
-                style="--c:${c.color};top:${top}px;height:${height}px;left:calc(${p.lane * w}% + 2px);width:calc(${w}% - 4px)">
-                <div class="bn">${clash ? '<span class="warn-ic">⚠ </span>' : ''}${p.cont ? '↪ ' : ''}${esc(p.a.name)}</div>
-                ${height > 26 ? `<div class="bt">${timeRange(p.a)} · ${H(dur)}h</div>` : ''}
-            </div>`;
+            const name = `${clash ? '<span class="warn-ic" aria-hidden="true">⚠</span>' : ''}${carried ? '<span class="cont" aria-hidden="true">↪</span>' : ''}${esc(p.a.name)}`;
+            const body = tier === 'xs' ? ''
+                : tier === 'sm' ? `<span class="bn">${name}</span><span class="bt">${TB.formatTime(p.a.start)}</span>`
+                : `<span class="bn">${name}</span><span class="bt">${timeRange(p.a)} · ${H(dur)}h</span>${tier === 'lg' ? `<span class="bc">${esc(c.name)}</span>` : ''}`;
+            return `<button type="button" class="block t-${tier}${flex ? ' flex' : ''}${clash ? ' clash' : ''}" data-action="edit-act" data-id="${esc(p.a.id)}" data-tip="${esc(tip)}" aria-label="${esc(tip.replace('\n', ', '))}"
+                style="--c:${c.color};top:${top}px;height:${height}px;left:calc(${p.lane * w}% + 2px);width:calc(${w}% - 4px)">${body}</button>`;
         };
 
-        const calendar = `<div class="calendar">
-            <div class="cal-head"><div></div>${TB.DAYS_SHORT.map((d, i) => {
-                const over = B.byDay[i] > 24;
-                const cls = [isThisWeek && i === todayIdx ? 'today' : '', i === ui.agendaDay ? 'selected' : ''].join(' ');
-                return `<div class="${cls}" role="button" tabindex="0" data-action="agenda-day" data-day="${i}" title="Show free time for ${TB.DAYS[i]}"><b>${d} ${dayDate(i).getDate()}</b><span class="${over ? 'over' : ''}">${H(B.byDay[i])} h</span></div>`;
-            }).join('')}</div>
-            <div class="cal-scroll"><div class="cal-body" style="--hour:${HOUR_PX}px">
-                <div class="cal-hours">${Array.from({ length: 24 }, (_, h) => `<div>${String(h).padStart(2, '0')}:00</div>`).join('')}</div>
-                ${byDay.map((list, i) => `<div class="cal-day${isThisWeek && i === todayIdx ? ' today' : ''}" data-day="${i}" style="height:${24 * HOUR_PX}px">${list.map(blockHtml).join('')}</div>`).join('')}
-            </div></div>
+        const now = new Date();
+        const nowMin = now.getHours() * 60 + now.getMinutes();
+        const nowLine = isThisWeek && nowMin >= geo.start
+            ? `<div class="now-line" data-now style="top:${y(nowMin)}px" aria-hidden="true"></div>` : '';
+
+        const calendar = `<div class="calendar" style="--hour:${hourPx}px;--cal-h:${geo.height}px">
+            <div class="cal-scroll">
+                <div class="cal-head"><div class="cal-corner"></div>${TB.DAYS_SHORT.map((d, i) => {
+                    const over = B.byDay[i] > 24;
+                    const cls = [isThisWeek && i === todayIdx ? 'today' : '', i === ui.agendaDay ? 'selected' : ''].join(' ');
+                    return `<div class="${cls}" role="button" tabindex="0" data-action="agenda-day" data-day="${i}" title="Show free time for ${TB.DAYS[i]}"><b>${d} <span class="dnum">${dayDate(i).getDate()}</span></b><span class="dh${over ? ' over' : ''}">${H(B.byDay[i])} h</span></div>`;
+                }).join('')}</div>
+                <div class="cal-body">
+                    <div class="cal-hours" aria-hidden="true">${Array.from({ length: hours }, (_, h) => `<div><span>${String(firstHour + h).padStart(2, '0')}:00</span></div>`).join('')}</div>
+                    ${byDay.map((list, i) => `<div class="cal-day${isThisWeek && i === todayIdx ? ' today' : ''}" data-day="${i}" style="height:${hours * hourPx}px">${list.map(blockHtml).join('')}${isThisWeek && i === todayIdx ? nowLine : ''}</div>`).join('')}
+                </div>
+            </div>
         </div>`;
 
         const dayList = byDay[ui.agendaDay];
@@ -476,19 +535,39 @@
         </div>`;
 
         const unsched = B.categories.filter(c => c.adjustMin !== 0);
+        const rangeToggle = `<div class="range-toggle" role="group" aria-label="Hours shown">
+            <button type="button" class="${ui.calRange === 'day' ? 'on' : ''}" data-action="cal-range" data-range="day" aria-pressed="${ui.calRange === 'day'}" title="Hide the overnight hours">Day</button>
+            <button type="button" class="${ui.calRange === 'full' ? 'on' : ''}" data-action="cal-range" data-range="full" aria-pressed="${ui.calRange === 'full'}" title="Show midnight to midnight">24 h</button>
+        </div>`;
         $('#view-schedule').innerHTML = `
             <div class="sched-toolbar">
                 <button class="btn primary" data-action="new-act">+ Add activity</button>
-                <div class="key sched-key-desktop"><span><i class="k-fixed"></i>Fixed</span><span><i class="k-flex"></i>Flexible</span><span><i class="k-clash"></i>Overlap</span><span>↪ continues past midnight</span></div>
+                <span class="hide-sm">${rangeToggle}</span>
                 <span class="spacer"></span>
-                <span class="muted num" style="font-size:12px">${B.activityCount} blocks · ${H(scheduled)} h scheduled</span>
+                <span class="muted num sched-count">${B.activityCount} blocks · ${H(scheduled)} h scheduled</span>
             </div>
-            ${B.problems.length ? `<div class="banner" style="border-color:rgba(255,92,92,.45);background:var(--bad-bg);color:#ffc2c2">▲ ${esc(B.problems[0])}${B.problems.length > 1 ? ` <button class="btn sm" data-tab-go="overview">See all ${B.problems.length}</button>` : ''}</div>` : ''}
-            ${calendar}${agenda}
-            <div class="unsched-note">${unsched.length
-                ? `Also budgeted without a time slot: ${unsched.map(c => `<b>${esc(c.name)} ${signed(c.adjust)} h</b>`).join(' · ')}. <button class="btn sm ghost" data-tab-go="budget">Edit in Budget</button>`
-                : 'Tip: categories you don’t want to schedule block-by-block (meals, commute) can be budgeted as unscheduled hours in Budget & Targets.'}</div>
-            ${dayFreeHtml(plan, unsched)}`;
+            ${B.problems.length ? `<div class="banner bad">▲ ${esc(B.problems[0])}${B.problems.length > 1 ? ` <button class="btn sm" data-tab-go="overview">See all ${B.problems.length}</button>` : ''}</div>` : ''}
+            <div class="sched-layout">
+                <div class="sched-main">${calendar}${agenda}</div>
+                <aside class="sched-rail">
+                    ${dayFreeHtml(plan, unsched)}
+                    <div class="panel rail-panel">
+                        <div class="panel-title">Key</div>
+                        <div class="key"><span><i class="k-fixed"></i>Fixed</span><span><i class="k-flex"></i>Flexible</span><span><i class="k-clash"></i>Overlap</span><span><b class="k-sym">↪</b>Continues from earlier</span></div>
+                        <p class="help">Click an empty slot to add an activity there. Click a day name to see its free time.</p>
+                    </div>
+                    <div class="unsched-note">${unsched.length
+                        ? `Also budgeted without a time slot: ${unsched.map(c => `<b>${esc(c.name)} ${signed(c.adjust)} h</b>`).join(' · ')}. <button class="btn sm ghost" data-tab-go="budget">Edit in Budget</button>`
+                        : 'Tip: categories you don’t want to schedule block-by-block (meals, commute) can be budgeted as unscheduled hours in Budget & Targets.'}</div>
+                </aside>
+            </div>`;
+
+        // Second pass: if banners/toolbar moved the calendar, re-fit once to the real space.
+        const calEl = $('.calendar');
+        if (calEl && calEl.offsetParent) {
+            const t = Math.round(calEl.getBoundingClientRect().top + window.scrollY);
+            if (t !== calTop) { calTop = t; renderSchedule(); }
+        }
     }
 
     /** Green summary of open (unbooked) calendar time for the selected day. */
@@ -1203,6 +1282,7 @@
         'new-act': () => openActivityDialog(null),
         'edit-act': el => { const a = findActivity(el.dataset.id); if (a) openActivityDialog(a); },
         'agenda-day': el => { ui.agendaDay = Number(el.dataset.day); render(); },
+        'cal-range': el => { ui.calRange = el.dataset.range === 'full' ? 'full' : 'day'; calResetScroll = true; save(); render(); },
         'new-cat': () => openCategoryDialog(null),
         'edit-cat': el => openCategoryDialog(cat(el.dataset.id)),
         'wi-add': () => { const f = state.categories.find(c => c.type === 'flexible') || state.categories[0]; ui.whatif.push({ categoryId: f.id, op: 'add', hours: 1 }); render(); },
@@ -1256,7 +1336,7 @@
             const day = e.target.closest('.cal-day');
             if (day) {
                 const y = e.clientY - day.getBoundingClientRect().top;
-                const start = Math.min(23 * 60, Math.max(0, Math.floor(y / HOUR_PX * 2) * 30));
+                const start = Math.min(23 * 60, Math.max(0, calRange.start + Math.floor(y / hourPx * 2) * 30));
                 openActivityDialog(null, { day: Number(day.dataset.day), start, end: start + 60 });
             }
         });
@@ -1346,6 +1426,19 @@
             if (e.target.closest('[data-tip]') && !(e.relatedTarget && e.relatedTarget.closest && e.relatedTarget.closest('[data-tip]'))) hideTip();
         });
         window.addEventListener('scroll', hideTip, { passive: true });
+
+        // Re-fit the calendar to the window; keep the "now" line moving.
+        let resizeTimer = null;
+        window.addEventListener('resize', () => {
+            clearTimeout(resizeTimer);
+            resizeTimer = setTimeout(() => { if (ui.tab === 'schedule') render(); }, 150);
+        });
+        setInterval(() => {
+            const line = $('[data-now]');
+            if (!line) return;
+            const d = new Date();
+            line.style.top = ((d.getHours() * 60 + d.getMinutes() - calRange.start) / 60 * hourPx) + 'px';
+        }, 60000);
 
         // Keep "today" fresh if the tab stays open across midnight/weeks.
         window.addEventListener('storage', ev => { if (ev.key === STORE_KEY) { loadState(); render(); } });

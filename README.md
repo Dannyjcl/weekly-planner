@@ -12,7 +12,7 @@ unallocated    = discretionary − allocated      (negative ⇒ over-allocated)
 ## Features
 
 - **Overview** – the headline number is the hours still available. It also shows KPIs (total, fixed, discretionary, allocated, unallocated, over-allocated) and a breakdown bar of the 168 hours plus a second bar for how discretionary time is split. A constraint check says exactly where you're over-allocated: fixed > 168, flexible > discretionary, overlapping blocks, or a day with more than 24 h. It also has computed insights and target progress.
-- **Schedule** – a Monday–Sunday calendar (an agenda list on phones). Activities have a name, category, day(s), start and end time, and a fixed/flexible classification. By default an activity uses its category's type, but you can override it per activity. Blocks can cross midnight, and overlapping blocks are flagged.
+- **Schedule** – a Monday–Sunday calendar (an agenda list on phones) that sizes itself to fit your screen, with a Day (06–24) / 24 h toggle, a live “now” line, and the selected day’s free time in a side panel on wide screens. Activities have a name, category, day(s), start and end time, and a fixed/flexible classification. By default an activity uses its category's type, but you can override it per activity. Blocks can cross midnight, and overlapping blocks are flagged.
 - **Budget & Targets** – categories with an optional minimum, target and maximum. Hours = calendar blocks + *unscheduled hours*, so you can budget something like "Meals 14 h" without drawing every meal.
 - **Scenarios** – copies of the base week (Exam Week, Tournament Week…) that you can change without touching the base week. A side-by-side table shows the differences, and you can type new hours straight into it.
 - **What-If** – deterministic questions such as "add 5 h of study" or "set work to 10 h". It shows whether the change fits, and if it doesn't, which flexible categories would have to shrink (taking from the most slack above each minimum first).
@@ -41,7 +41,7 @@ The tests in `tests/engine.test.js` cover the reference example (114 h fixed →
 |---|---|
 | `js/engine.js` | Pure calculation engine (integer minutes internally, so decimal hours don't drift). Runs in the browser and in Node. |
 | `js/app.js` | UI: state, rendering, dialogs, events |
-| `css/styles.css` | Dark dashboard theme and responsive layout |
+| `css/styles.css` | Dark dashboard theme (design tokens, type scale) and responsive layout |
 | `index.html` | App shell |
 | `js/cloud-sync.js` | Shared Firebase sync module (Google sign-in, live Firestore sync, cross-app reads) |
 | `js/planner-sync.js` | Planner's sync config + weekly summary published for other apps |
