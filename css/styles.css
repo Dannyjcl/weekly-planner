@@ -356,6 +356,41 @@ main { max-width: 1440px; margin: 0 auto; padding: var(--sp-4) 24px 64px; }
 .rail-panel { padding: var(--sp-3) var(--sp-4); }
 .rail-panel .help { margin-top: var(--sp-2); line-height: 1.5; }
 
+/* Daily tasks beside the calendar: laptop/monitor only (phones and tablets keep the old layout). */
+.day-tasks, .cal-head .dtask { display: none; }
+@media (min-width: 1100px) {
+    .day-tasks { display: block; }
+    .cal-head .dtask { display: inline-block; }
+}
+.day-tasks .panel-hd { margin-bottom: var(--sp-2); }
+.dt-status { font-family: var(--mono); font-size: var(--fs-xxs); color: var(--accent); }
+.dt-status.done { color: var(--good); }
+.dt-list { list-style: none; margin: 0; padding: 0; max-height: 34vh; overflow-y: auto; scrollbar-width: thin; scrollbar-color: var(--line-2) transparent; }
+.dt-item { display: flex; align-items: flex-start; gap: 8px; padding: 6px 0; border-top: 1px solid var(--line); }
+.dt-item:first-child { border-top: 0; }
+.dt-cb { margin: 2px 0 0; accent-color: var(--good); width: 14px; height: 14px; flex-shrink: 0; cursor: pointer; }
+.dt-text { flex: 1; min-width: 0; font-size: var(--fs-sm); line-height: 1.4; color: var(--text); overflow-wrap: anywhere; }
+.dt-item.done .dt-text { color: var(--faint); text-decoration: line-through; }
+.dt-del {
+    background: none; border: 0; color: var(--faint); font-size: 11px; padding: 2px 4px; border-radius: 4px; cursor: pointer;
+    opacity: 0; transition: opacity var(--dur-fast) var(--ease-out), color var(--dur-fast) var(--ease-out);
+}
+.dt-item:hover .dt-del, .dt-del:focus-visible { opacity: 1; }
+.dt-del:hover { color: var(--bad); }
+.dt-empty { font-size: var(--fs-sm); color: var(--faint); margin: 2px 0 var(--sp-2); }
+.dt-add { display: flex; gap: 6px; margin-top: var(--sp-2); }
+.dt-add input {
+    flex: 1; min-width: 0; background: var(--bg); border: 1px solid var(--line-2); border-radius: var(--radius-sm);
+    color: var(--text); font: inherit; font-size: var(--fs-sm); padding: 5px 8px;
+}
+.dt-add input:focus { outline: none; border-color: var(--accent); }
+.dt-link { display: inline-block; margin-top: var(--sp-2); font-size: var(--fs-xs); color: var(--muted); text-decoration: none; }
+.dt-link:hover { color: var(--text); }
+.cal-head .dtask {
+    margin-left: 5px; padding: 0 5px; border-radius: 8px; font-style: normal; font-weight: 600;
+    background: rgba(255, 171, 46, 0.16); color: var(--accent);
+}
+
 .calendar {
     border: 1px solid var(--line); border-radius: var(--radius); background: var(--panel); overflow: hidden;
 }
