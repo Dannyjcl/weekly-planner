@@ -143,6 +143,29 @@
         return d;
     }
 
+    /* ── Daily tasks (same storage as tasks.html: planner-YYYY-MM-DD → [{ text, done }]) ── */
+
+    function taskKey(i) {
+        const d = dayDate(i);
+        return 'planner-' + d.getFullYear() + '-' + String(d.getMonth() + 1).padStart(2, '0') + '-' + String(d.getDate()).padStart(2, '0');
+    }
+
+    function loadTasks(i) {
+        try {
+            const t = JSON.parse(localStorage.getItem(taskKey(i)));
+            return Array.isArray(t) ? t : [];
+        } catch (e) { return []; }
+    }
+
+    function saveTasks(i, tasks) {
+        try {
+            localStorage.setItem(taskKey(i), JSON.stringify(tasks));
+            if (window.CloudSync) window.CloudSync.save();
+        } catch (e) {
+            toast('Could not save — browser storage is unavailable or full.');
+        }
+    }
+
     function timeRange(a) {
         return TB.formatTime(a.start) + '–' + TB.formatTime(a.end);
     }
@@ -507,12 +530,15 @@
         const nowLine = isThisWeek && nowMin >= geo.start
             ? `<div class="now-line" data-now style="top:${y(nowMin)}px" aria-hidden="true"></div>` : '';
 
+        // Open daily tasks per day, shown in the calendar header on wide screens.
+        const left = [0, 1, 2, 3, 4, 5, 6].map(i => loadTasks(i).filter(t => !t.done).length);
+
         const calendar = `<div class="calendar" style="--hour:${hourPx}px;--cal-h:${geo.height}px">
             <div class="cal-scroll">
                 <div class="cal-head"><div class="cal-corner"></div>${TB.DAYS_SHORT.map((d, i) => {
                     const over = B.byDay[i] > 24;
                     const cls = [isThisWeek && i === todayIdx ? 'today' : '', i === ui.agendaDay ? 'selected' : ''].join(' ');
-                    return `<div class="${cls}" role="button" tabindex="0" data-action="agenda-day" data-day="${i}" title="Show free time for ${TB.DAYS[i]}"><b>${d} <span class="dnum">${dayDate(i).getDate()}</span></b><span class="dh${over ? ' over' : ''}">${H(B.byDay[i])} h</span></div>`;
+                    return `<div class="${cls}" role="button" tabindex="0" data-action="agenda-day" data-day="${i}" title="Show free time for ${TB.DAYS[i]}"><b>${d} <span class="dnum">${dayDate(i).getDate()}</span></b><span class="dh${over ? ' over' : ''}">${H(B.byDay[i])} h${left[i] ? `<i class="dtask" title="${left[i]} task${left[i] !== 1 ? 's' : ''} left">${left[i]}</i>` : ''}</span></div>`;
                 }).join('')}</div>
                 <div class="cal-body">
                     <div class="cal-hours" aria-hidden="true">${Array.from({ length: hours }, (_, h) => `<div><span>${String(firstHour + h).padStart(2, '0')}:00</span></div>`).join('')}</div>
@@ -551,6 +577,7 @@
                 <div class="sched-main">${calendar}${agenda}</div>
                 <aside class="sched-rail">
                     ${dayFreeHtml(plan, unsched)}
+                    ${dayTasksHtml()}
                     <div class="panel rail-panel">
                         <div class="panel-title">Key</div>
                         <div class="key"><span><i class="k-fixed"></i>Fixed</span><span><i class="k-flex"></i>Flexible</span><span><i class="k-clash"></i>Overlap</span><span><b class="k-sym">↪</b>Continues from earlier</span></div>
@@ -595,6 +622,27 @@
             <div class="df-sub">${H(open.booked)} h of ${TB.DAYS[d]} is booked on the calendar${longest ? ` · longest open window <b>${clock(longest.start)}–${clock(longest.end)}</b> (${H(longest.minutes / 60)} h)` : ''}${freeBlocks ? ` · plus ${H(freeBlocks / 60)} h already blocked as Free Time` : ''}.</div>
             ${windows.length ? `<div class="df-windows">${windows.map(w => `<span>${clock(w.start)}–${clock(w.end)} · ${H(w.minutes / 60)}h</span>`).join('')}</div>` : ''}
             ${unsched.some(c => c.adjust > 0) ? '<div class="df-note">Weekly hours budgeted without a time slot aren’t tied to a day, so they aren’t subtracted here.</div>' : ''}
+        </section>`;
+    }
+
+    /** The selected day's to-do list (tasks.html data), shown beside the calendar on wide screens only. */
+    function dayTasksHtml() {
+        const d = ui.agendaDay;
+        const tasks = loadTasks(d);
+        const left = tasks.filter(t => !t.done).length;
+        const status = !tasks.length ? '' : left ? `${left} left` : 'Done ✓';
+        return `<section class="panel rail-panel day-tasks" aria-label="Tasks for ${TB.DAYS[d]}">
+            <div class="panel-hd"><span class="panel-title">Tasks · ${TB.DAYS_SHORT[d]} ${fmtDate(dayDate(d))}</span>${status ? `<span class="dt-status${left ? '' : ' done'}">${status}</span>` : ''}</div>
+            ${tasks.length ? `<ul class="dt-list">${tasks.map((t, i) => `<li class="dt-item${t.done ? ' done' : ''}">
+                <input type="checkbox" class="dt-cb" data-action="toggle-task" data-i="${i}"${t.done ? ' checked' : ''} aria-label="Done: ${esc(t.text)}">
+                <span class="dt-text">${esc(t.text)}</span>
+                <button type="button" class="dt-del" data-action="remove-task" data-i="${i}" aria-label="Remove ${esc(t.text)}" title="Remove task">✕</button>
+            </li>`).join('')}</ul>` : `<p class="dt-empty">Nothing on the list for ${TB.DAYS[d]} yet.</p>`}
+            <div class="dt-add">
+                <input type="text" id="task-new" data-fk="task-new" placeholder="Add a task for ${TB.DAYS_SHORT[d]}…" autocomplete="off" maxlength="200">
+                <button type="button" class="btn sm" data-action="add-task">Add</button>
+            </div>
+            <a class="dt-link" href="tasks.html">Full task list →</a>
         </section>`;
     }
 
@@ -1282,6 +1330,30 @@
         'new-act': () => openActivityDialog(null),
         'edit-act': el => { const a = findActivity(el.dataset.id); if (a) openActivityDialog(a); },
         'agenda-day': el => { ui.agendaDay = Number(el.dataset.day); render(); },
+        'add-task': () => {
+            const inp = $('#task-new');
+            const text = inp ? inp.value.trim() : '';
+            if (!text) { if (inp) inp.focus(); return; }
+            const tasks = loadTasks(ui.agendaDay);
+            tasks.push({ text, done: false });
+            inp.value = '';
+            saveTasks(ui.agendaDay, tasks);
+            render();
+        },
+        'toggle-task': el => {
+            const tasks = loadTasks(ui.agendaDay);
+            const t = tasks[Number(el.dataset.i)];
+            if (!t) return;
+            t.done = !t.done;
+            saveTasks(ui.agendaDay, tasks);
+            render();
+        },
+        'remove-task': el => {
+            const tasks = loadTasks(ui.agendaDay);
+            tasks.splice(Number(el.dataset.i), 1);
+            saveTasks(ui.agendaDay, tasks);
+            render();
+        },
         'cal-range': el => { ui.calRange = el.dataset.range === 'full' ? 'full' : 'day'; calResetScroll = true; save(); render(); },
         'new-cat': () => openCategoryDialog(null),
         'edit-cat': el => openCategoryDialog(cat(el.dataset.id)),
@@ -1385,6 +1457,7 @@
 
         document.addEventListener('keydown', e => {
             if (e.key === 'Enter' && e.target.id === 'scen-name') actions['create-scenario'](e.target);
+            if (e.key === 'Enter' && e.target.id === 'task-new') actions['add-task'](e.target);
             if ((e.key === 'Enter' || e.key === ' ') && e.target.matches('div[role=button][data-action]')) {
                 e.preventDefault();
                 actions[e.target.dataset.action](e.target);
@@ -1441,7 +1514,10 @@
         }, 60000);
 
         // Keep "today" fresh if the tab stays open across midnight/weeks.
-        window.addEventListener('storage', ev => { if (ev.key === STORE_KEY) { loadState(); render(); } });
+        window.addEventListener('storage', ev => {
+            if (ev.key === STORE_KEY) { loadState(); render(); }
+            else if (ev.key && ev.key.startsWith('planner-') && ui.tab === 'schedule') render();   // task list edited in another tab
+        });
     }
 
     /* ── Cloud sync hooks (used by js/planner-sync.js) ──────── */
