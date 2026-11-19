@@ -490,12 +490,16 @@
         const B = budget(plan);
         const clashIds = new Set(B.overlaps.flatMap(o => [o.aId, o.bId]));
         const all = pieces(plan);
-        const byDay = [0, 1, 2, 3, 4, 5, 6].map(d => layoutLanes(all.filter(p => p.day === d)));
+        // Read-only Google Calendar events for this week (empty until connected).
+        const gWeek = window.GCal ? window.GCal.forWeek(ui.week) : null;
+        const gPieces = gWeek ? gWeek.timed.map(g => ({ g, day: g.day, start: g.start, end: g.end, cont: g.cont })) : [];
+        const gAllDay = gWeek ? gWeek.allDay : [[], [], [], [], [], [], []];
+        const byDay = [0, 1, 2, 3, 4, 5, 6].map(d => layoutLanes(all.filter(p => p.day === d).concat(gPieces.filter(p => p.day === d))));
         const todayKey = TB.weekKey(new Date());
         const isThisWeek = ui.week === todayKey;
         const scheduled = B.categories.reduce((t, c) => t + c.scheduled, 0);
 
-        const geo = calendarGeometry(all);
+        const geo = calendarGeometry(all.concat(gPieces));
         hourPx = geo.px;
         calRange = { start: geo.start, end: geo.end };
         const firstHour = geo.start / 60;
@@ -504,6 +508,7 @@
         calDefaultScroll = Math.max(0, y(Math.max(geo.start, 7 * 60)) - 8);
 
         const blockHtml = p => {
+            if (p.g) return gcalBlockHtml(p, geo, y);
             const s = Math.max(p.start, geo.start);
             const e = Math.min(p.end, geo.end);
             if (e <= s) return '';
@@ -538,7 +543,7 @@
                 <div class="cal-head"><div class="cal-corner"></div>${TB.DAYS_SHORT.map((d, i) => {
                     const over = B.byDay[i] > 24;
                     const cls = [isThisWeek && i === todayIdx ? 'today' : '', i === ui.agendaDay ? 'selected' : ''].join(' ');
-                    return `<div class="${cls}" role="button" tabindex="0" data-action="agenda-day" data-day="${i}" title="Show free time for ${TB.DAYS[i]}"><b>${d} <span class="dnum">${dayDate(i).getDate()}</span></b><span class="dh${over ? ' over' : ''}">${H(B.byDay[i])} h${left[i] ? `<i class="dtask" title="${left[i]} task${left[i] !== 1 ? 's' : ''} left">${left[i]}</i>` : ''}</span></div>`;
+                    return `<div class="${cls}" role="button" tabindex="0" data-action="agenda-day" data-day="${i}" title="Show free time for ${TB.DAYS[i]}"><b>${d} <span class="dnum">${dayDate(i).getDate()}</span></b><span class="dh${over ? ' over' : ''}">${H(B.byDay[i])} h${left[i] ? `<i class="dtask" title="${left[i]} task${left[i] !== 1 ? 's' : ''} left">${left[i]}</i>` : ''}${gAllDay[i].length ? `<i class="gday" data-tip="${esc('All day (Google Calendar)\n' + gAllDay[i].map(a => a.title).join('\n'))}" aria-label="${esc(gAllDay[i].length + ' all-day Google Calendar event' + (gAllDay[i].length !== 1 ? 's' : '') + ': ' + gAllDay[i].map(a => a.title).join(', '))}">${gAllDay[i].length}</i>` : ''}</span></div>`;
                 }).join('')}</div>
                 <div class="cal-body">
                     <div class="cal-hours" aria-hidden="true">${Array.from({ length: hours }, (_, h) => `<div><span>${String(firstHour + h).padStart(2, '0')}:00</span></div>`).join('')}</div>
@@ -550,14 +555,15 @@
         const dayList = byDay[ui.agendaDay];
         const agenda = `<div class="agenda">
             <div class="day-pills">${TB.DAYS_SHORT.map((d, i) => `<button class="day-pill${i === ui.agendaDay ? ' active' : ''}${B.byDay[i] > 24 ? ' over' : ''}" data-action="agenda-day" data-day="${i}"><b>${d}</b><span>${H(B.byDay[i])}h</span></button>`).join('')}</div>
-            <div class="agenda-list">${dayList.length ? dayList.map(p => {
+            <div class="agenda-list">${gAllDay[ui.agendaDay].map(a => gcalAllDayHtml(a)).join('')}${dayList.length ? dayList.slice().sort((p, q) => p.start - q.start || q.end - p.end).map(p => {
+                if (p.g) return gcalAgendaHtml(p);
                 const c = cat(p.a.categoryId);
                 const flex = typeOf(p.a) === 'flexible';
                 return `<button class="agenda-item${clashIds.has(p.a.id) ? ' clash' : ''}" style="--c:${c.color}" data-action="edit-act" data-id="${esc(p.a.id)}">
                     <span class="t">${p.cont ? '↪ ' : ''}${TB.formatTime(p.start)}–${TB.formatTime(p.end)}</span>
                     <span style="min-width:0"><span class="n" style="display:block">${clashIds.has(p.a.id) ? '⚠ ' : ''}${esc(p.a.name)}</span><span class="c">${esc(c.name)} · ${flex ? 'flexible' : 'fixed'}</span></span>
                     <span class="h">${H(TB.durationMin(p.a.start, p.a.end) / 60)}h</span></button>`;
-            }).join('') : `<div class="empty"><b>Nothing scheduled on ${TB.DAYS[ui.agendaDay]}</b>Tap “Add activity” to block out time.</div>`}</div>
+            }).join('') : gAllDay[ui.agendaDay].length ? '' : `<div class="empty"><b>Nothing scheduled on ${TB.DAYS[ui.agendaDay]}</b>Tap “Add activity” to block out time.</div>`}</div>
         </div>`;
 
         const unsched = B.categories.filter(c => c.adjustMin !== 0);
@@ -569,6 +575,7 @@
             <div class="sched-toolbar">
                 <button class="btn primary" data-action="new-act">+ Add activity</button>
                 <span class="hide-sm">${rangeToggle}</span>
+                ${gcalBarHtml()}
                 <span class="spacer"></span>
                 <span class="muted num sched-count">${B.activityCount} blocks · ${H(scheduled)} h scheduled</span>
             </div>
@@ -580,7 +587,7 @@
                     ${dayTasksHtml()}
                     <div class="panel rail-panel">
                         <div class="panel-title">Key</div>
-                        <div class="key"><span><i class="k-fixed"></i>Fixed</span><span><i class="k-flex"></i>Flexible</span><span><i class="k-clash"></i>Overlap</span><span><b class="k-sym">↪</b>Continues from earlier</span></div>
+                        <div class="key"><span><i class="k-fixed"></i>Fixed</span><span><i class="k-flex"></i>Flexible</span><span><i class="k-clash"></i>Overlap</span><span><b class="k-sym">↪</b>Continues from earlier</span>${window.GCal && window.GCal.configured ? '<span><i class="k-gcal"></i>Google Calendar (read-only)</span>' : ''}</div>
                         <p class="help">Click an empty slot to add an activity there. Click a day name to see its free time.</p>
                     </div>
                     <div class="unsched-note">${unsched.length
@@ -594,6 +601,66 @@
         if (calEl && calEl.offsetParent) {
             const t = Math.round(calEl.getBoundingClientRect().top + window.scrollY);
             if (t !== calTop) { calTop = t; renderSchedule(); }
+        }
+    }
+
+    /* ── Google Calendar (read-only, see js/gcal.js) ─────────── */
+
+    function gcalTip(g) {
+        return `${g.title} · Google Calendar\n${TB.DAYS_SHORT[g.day]} ${g.label} · ${H(g.minutes / 60)} h${g.location ? '\n' + g.location : ''}`;
+    }
+
+    /** A Google event on the week grid: not editable here; opens the event in Google Calendar. */
+    function gcalBlockHtml(p, geo, y) {
+        const g = p.g;
+        const s = Math.max(p.start, geo.start);
+        const e = Math.min(p.end, geo.end);
+        if (e <= s) return '';
+        const top = y(s) + 1;
+        const height = Math.max(y(e) - y(s) - 2, 6);
+        const tier = blockTier(height);
+        const w = 100 / p.lanes;
+        const tip = gcalTip(g);
+        const carried = p.cont || p.start < geo.start;
+        const name = `${carried ? '<span class="cont" aria-hidden="true">↪</span>' : ''}${esc(g.title)}`;
+        const body = tier === 'xs' ? ''
+            : tier === 'sm' ? `<span class="bn">${name}</span><span class="bt">${g.label.slice(0, 5)}</span>`
+            : `<span class="bn">${name}</span><span class="bt">${g.label} · ${H(g.minutes / 60)}h</span>${tier === 'lg' ? '<span class="bc">Google Calendar</span>' : ''}`;
+        const attrs = `class="block gcal t-${tier}" data-tip="${esc(tip)}" aria-label="${esc(tip.replace(/\n/g, ', '))}"
+            style="--c:var(--gcal);top:${top}px;height:${height}px;left:calc(${p.lane * w}% + 2px);width:calc(${w}% - 4px)"`;
+        return g.link ? `<a ${attrs} href="${esc(g.link)}" target="_blank" rel="noopener noreferrer">${body}</a>` : `<div ${attrs}>${body}</div>`;
+    }
+
+    function gcalAgendaHtml(p) {
+        const g = p.g;
+        const inner = `<span class="t">${p.cont ? '↪ ' : ''}${TB.formatTime(p.start)}–${p.end === TB.DAY_MIN ? '24:00' : TB.formatTime(p.end)}</span>
+            <span style="min-width:0"><span class="n" style="display:block">${esc(g.title)}</span><span class="c">Google Calendar${g.location ? ' · ' + esc(g.location) : ''}</span></span>
+            <span class="h">${H(g.minutes / 60)}h</span>`;
+        return g.link
+            ? `<a class="agenda-item gcal" style="--c:var(--gcal)" href="${esc(g.link)}" target="_blank" rel="noopener noreferrer">${inner}</a>`
+            : `<div class="agenda-item gcal" style="--c:var(--gcal)">${inner}</div>`;
+    }
+
+    function gcalAllDayHtml(a) {
+        const inner = `<span class="t">All day</span><span style="min-width:0"><span class="n" style="display:block">${esc(a.title)}</span><span class="c">Google Calendar</span></span><span></span>`;
+        return a.link
+            ? `<a class="agenda-item gcal" style="--c:var(--gcal)" href="${esc(a.link)}" target="_blank" rel="noopener noreferrer">${inner}</a>`
+            : `<div class="agenda-item gcal" style="--c:var(--gcal)">${inner}</div>`;
+    }
+
+    /** Toolbar control: connect / reload / status. Hidden until a client ID is set in js/gcal-config.js. */
+    function gcalBarHtml() {
+        if (!window.GCal) return '';
+        const st = window.GCal.status(ui.week);
+        const msg = st.message ? `<span class="gc-msg">${esc(st.message)}</span>` : '';
+        switch (st.state) {
+            case 'connect': return `<span class="gc-bar"><button class="btn sm" data-action="gcal-connect"><i class="gc-dot"></i>Show Google Calendar</button>${msg}</span>`;
+            case 'reload': return `<span class="gc-bar"><button class="btn sm" data-action="gcal-connect"><i class="gc-dot"></i>Load Google Calendar</button>${msg}</span>`;
+            case 'busy': return `<span class="gc-bar"><span class="gc-chip"><i class="gc-dot"></i>Waiting for Google…</span></span>`;
+            case 'loading': return `<span class="gc-bar"><span class="gc-chip"><i class="gc-dot"></i>Loading calendar…</span></span>`;
+            case 'error': return `<span class="gc-bar"><span class="gc-chip err"><i class="gc-dot"></i>${esc(st.message)}</span><button class="btn sm ghost" data-action="gcal-refresh">Retry</button></span>`;
+            case 'ok': return `<span class="gc-bar"><span class="gc-chip"><i class="gc-dot"></i>Google Calendar · ${st.count} event${st.count !== 1 ? 's' : ''}</span><button class="btn sm ghost" data-action="gcal-refresh" title="Reload events" aria-label="Reload Google Calendar events">↻</button><button class="btn sm ghost" data-action="gcal-disconnect" title="Stop showing Google Calendar on this device">Disconnect</button></span>`;
+            default: return '';
         }
     }
 
@@ -1330,6 +1397,9 @@
         'new-act': () => openActivityDialog(null),
         'edit-act': el => { const a = findActivity(el.dataset.id); if (a) openActivityDialog(a); },
         'agenda-day': el => { ui.agendaDay = Number(el.dataset.day); render(); },
+        'gcal-connect': () => { if (window.GCal) window.GCal.connect(); },
+        'gcal-refresh': () => { if (window.GCal) window.GCal.refresh(ui.week); },
+        'gcal-disconnect': () => { if (window.GCal) window.GCal.disconnect(); },
         'add-task': () => {
             const inp = $('#task-new');
             const text = inp ? inp.value.trim() : '';
@@ -1405,6 +1475,7 @@
             if (go) { ui.tab = go.dataset.tabGo; save(); render(); window.scrollTo(0, 0); return; }
             const el = e.target.closest('[data-action]');
             if (el && actions[el.dataset.action] && !el.disabled) { actions[el.dataset.action](el); return; }
+            if (e.target.closest('.gcal')) return;      // Google event: read-only (its link opens Google Calendar)
             const day = e.target.closest('.cal-day');
             if (day) {
                 const y = e.clientY - day.getBoundingClientRect().top;
@@ -1524,6 +1595,9 @@
 
     // Another device changed the data: reload state and redraw.
     window.plannerReload = () => { loadState(); render(); };
+
+    // Google Calendar events arrived (or connection changed): redraw the schedule.
+    if (window.GCal) window.GCal.onChange(() => { if (ui.tab === 'schedule') render(); });
 
     loadState();
     bind();

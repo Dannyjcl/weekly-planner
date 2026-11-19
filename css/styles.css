@@ -14,6 +14,7 @@
     --faint:     #737d8a;      /* lifted from #5d6672 so small labels pass AA on panels */
     --accent:    #ffab2e;
     --accent-ink:#1a1204;
+    --gcal:      #5b9cff;   /* Google Calendar events (read-only) */
     --good:      #2fbf71;
     --warn:      #fab219;
     --serious:   #ec835a;
@@ -467,6 +468,38 @@ main { max-width: 1440px; margin: 0 auto; padding: var(--sp-4) 24px 64px; }
     .block.t-sm .bt { display: none; }
     .block .bc { display: none; }
 }
+
+/* Google Calendar events: read-only, blue, diagonal hatch so they never look like planner blocks */
+.block.gcal {
+    background:
+        repeating-linear-gradient(135deg, color-mix(in srgb, var(--gcal) 10%, transparent) 0 6px, transparent 6px 12px),
+        color-mix(in srgb, var(--gcal) 14%, var(--panel));
+    border: 1px solid color-mix(in srgb, var(--gcal) 45%, transparent); border-left: 3px solid var(--gcal);
+    color: var(--text); text-decoration: none; cursor: pointer;
+}
+.block.gcal .bc { color: var(--gcal); }
+.cal-head .gday {
+    margin-left: 4px; padding: 0 5px; border-radius: 8px; font-style: normal; font-weight: 600;
+    background: color-mix(in srgb, var(--gcal) 20%, transparent); color: var(--gcal);
+}
+.agenda-item.gcal {
+    color: var(--text); text-decoration: none;
+    background:
+        repeating-linear-gradient(135deg, color-mix(in srgb, var(--gcal) 7%, transparent) 0 6px, transparent 6px 12px),
+        var(--panel);
+    border-color: color-mix(in srgb, var(--gcal) 35%, var(--line));
+}
+.agenda-item.gcal .c { color: var(--gcal); }
+.key .k-gcal {
+    background: repeating-linear-gradient(135deg, color-mix(in srgb, var(--gcal) 30%, transparent) 0 3px, transparent 3px 6px);
+    border: 1px solid color-mix(in srgb, var(--gcal) 55%, transparent); border-left: 3px solid var(--gcal);
+}
+.gc-bar { display: inline-flex; align-items: center; gap: 6px; flex-wrap: wrap; min-width: 0; }
+.gc-chip { display: inline-flex; align-items: center; gap: 6px; font-size: var(--fs-xs); color: var(--text-2); }
+.gc-chip.err { color: var(--bad); }
+.gc-msg { font-size: var(--fs-xs); color: var(--muted); }
+.gc-dot { display: inline-block; width: 8px; height: 8px; border-radius: 50%; background: var(--gcal); margin-right: 6px; vertical-align: 0; }
+.gc-chip .gc-dot { margin-right: 0; }
 
 .now-line {
     position: absolute; left: 0; right: 0; height: 0; border-top: 2px solid var(--bad); z-index: 5; pointer-events: none;
