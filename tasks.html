@@ -3,21 +3,34 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <meta name="theme-color" content="#0b1322">
     <title>Weekly Planner</title>
     <link rel="preconnect" href="https://fonts.googleapis.com">
     <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
-    <link href="https://fonts.googleapis.com/css2?family=Playfair+Display:wght@400;600;700&family=DM+Sans:wght@400;500;600;700&display=swap" rel="stylesheet">
+    <link href="https://fonts.googleapis.com/css2?family=DM+Sans:wght@400;500;600;700&display=swap" rel="stylesheet">
     <style>
+        /* Dark glass theme, matched to the Semester Budget app.
+           These styles live only in this page, so the TimeBudget
+           pages (index.html + css/styles.css) are not affected. */
         :root {
-            --bg:           #FDF8F4;
-            --card:         #FFFFFF;
-            --accent:       #C9856A;
-            --accent-light: #F5E6DF;
-            --text:         #2C2420;
-            --muted:        #9B8A84;
-            --success:      #7AAE8E;
-            --border:       #EDE4DF;
-            --danger:       #D95F5F;
+            color-scheme: dark;
+            --font:         -apple-system, BlinkMacSystemFont, "SF Pro Text", "DM Sans", system-ui, sans-serif;
+            --font-display: -apple-system, BlinkMacSystemFont, "SF Pro Display", "DM Sans", system-ui, sans-serif;
+            --bg:           #070a12;
+            --text:         #F3F6FC;
+            --muted:        #9AA4B8;
+            --faint:        #6E788C;
+            --accent:       #7FB2FF;
+            --accent-strong:#3B82F6;
+            --success:      #5FD38D;
+            --danger:       #FF7070;
+            --hairline:     rgba(255,255,255,0.08);
+            --glass:        linear-gradient(180deg, rgba(255,255,255,0.085), rgba(255,255,255,0.035));
+            --glass-solid:  rgba(22,28,42,0.94);
+            --glass-border: rgba(255,255,255,0.13);
+            --glass-shadow: inset 0 1px 0 rgba(255,255,255,0.12), 0 12px 32px rgba(0,0,0,0.35);
+            --blur:         blur(20px) saturate(150%);
+            --field:        rgba(255,255,255,0.06);
         }
 
         *, *::before, *::after {
@@ -26,12 +39,28 @@
             padding: 0;
         }
 
+        html { background: var(--bg); }
+
         body {
-            background: var(--bg);
             color: var(--text);
-            font-family: 'DM Sans', sans-serif;
+            font-family: var(--font);
             min-height: 100vh;
             -webkit-font-smoothing: antialiased;
+        }
+
+        /* Dark gradient with soft color glows, pinned behind everything */
+        body::before {
+            content: "";
+            position: fixed;
+            inset: 0;
+            z-index: -1;
+            pointer-events: none;
+            background:
+                radial-gradient(70% 45% at 10% -5%, rgba(64,110,200,0.42), transparent 70%),
+                radial-gradient(55% 40% at 105% 28%, rgba(90,130,210,0.20), transparent 70%),
+                radial-gradient(60% 45% at 85% 75%, rgba(50,170,120,0.12), transparent 70%),
+                radial-gradient(60% 40% at 0% 100%, rgba(80,90,180,0.16), transparent 70%),
+                linear-gradient(180deg, #0d1626 0%, #080c16 45%, #05070c 100%);
         }
 
         .app {
@@ -40,69 +69,106 @@
             min-height: 100vh;
         }
 
+        /* Shared glass surface */
+        .day-card, .week-nav, .back-link {
+            -webkit-backdrop-filter: var(--blur);
+            backdrop-filter: var(--blur);
+        }
+
         /* ── Header ─────────────────────────────────── */
 
         .header {
-            background: var(--accent);
-            padding: 24px 20px 20px;
+            padding: calc(22px + env(safe-area-inset-top)) 22px 6px;
+            display: flex;
+            justify-content: space-between;
+            align-items: flex-start;
+            gap: 12px;
         }
 
+        .app-icon {
+            width: 52px;
+            height: 52px;
+            border-radius: 15px;
+            display: grid;
+            place-items: center;
+            margin-bottom: 16px;
+            color: #EAF2FF;
+            background: linear-gradient(160deg, #5C8FD6 0%, #2D5394 100%);
+            border: 1px solid rgba(255,255,255,0.18);
+            box-shadow: inset 0 1px 0 rgba(255,255,255,0.3), 0 8px 24px rgba(40,90,180,0.35);
+        }
+
+        .app-icon svg { width: 26px; height: 26px; }
+
         .header h1 {
-            font-family: 'Playfair Display', serif;
-            font-size: 26px;
+            font-family: var(--font-display);
+            font-size: 32px;
             font-weight: 700;
-            color: #fff;
-            letter-spacing: -0.2px;
+            letter-spacing: -0.02em;
+            line-height: 1.1;
+            color: var(--text);
         }
 
         .back-link {
             display: inline-block;
-            margin-bottom: 8px;
-            font-size: 13px;
-            font-weight: 600;
-            color: rgba(255, 255, 255, 0.9);
+            margin-top: 7px;
+            padding: 9px 16px;
+            border-radius: 999px;
+            background: rgba(255,255,255,0.07);
+            border: 1px solid var(--glass-border);
+            box-shadow: inset 0 1px 0 rgba(255,255,255,0.10);
+            color: var(--text);
+            font-size: 14px;
+            font-weight: 500;
             text-decoration: none;
+            white-space: nowrap;
+            flex-shrink: 0;
+            transition: background 0.15s;
         }
 
-        .back-link:hover { color: #fff; text-decoration: underline; }
+        .back-link:hover { background: rgba(255,255,255,0.12); }
+        .back-link:active { transform: scale(0.98); }
 
         #header-summary {
-            margin-top: 5px;
-            font-size: 13px;
-            font-weight: 500;
-            color: rgba(255, 255, 255, 0.85);
+            margin-top: 6px;
+            font-size: 15px;
+            font-weight: 400;
+            color: var(--muted);
         }
 
-        /* ── Week Navigation ─────────────────────────── */
+        /* ── Week Navigation (pill bar) ──────────────── */
 
         .week-nav {
             display: flex;
             align-items: center;
             justify-content: space-between;
-            padding: 14px 20px 10px;
-            gap: 8px;
+            gap: 6px;
+            margin: 18px 16px 0;
+            padding: 5px;
+            border-radius: 999px;
+            background: rgba(255,255,255,0.06);
+            border: 1px solid var(--glass-border);
+            box-shadow: inset 0 1px 0 rgba(255,255,255,0.08), 0 8px 24px rgba(0,0,0,0.25);
         }
 
         .nav-btn {
-            background: var(--card);
-            border: 1px solid var(--border);
-            color: var(--accent);
-            font-family: 'DM Sans', sans-serif;
-            font-size: 13px;
-            font-weight: 700;
-            border-radius: 12px;
-            padding: 8px 14px;
+            background: linear-gradient(180deg, rgba(130,170,240,0.42), rgba(80,115,180,0.28));
+            border: 1px solid rgba(255,255,255,0.18);
+            box-shadow: inset 0 1px 0 rgba(255,255,255,0.25), 0 4px 14px rgba(30,60,120,0.45);
+            color: #fff;
+            font-family: var(--font);
+            font-size: 14px;
+            font-weight: 600;
+            border-radius: 999px;
+            padding: 9px 14px;
             cursor: pointer;
             white-space: nowrap;
             flex-shrink: 0;
-            transition: background 0.15s, color 0.15s, border-color 0.15s;
+            transition: filter 0.15s;
         }
 
-        .nav-btn:hover {
-            background: var(--accent);
-            border-color: var(--accent);
-            color: #fff;
-        }
+        .nav-btn:hover { filter: brightness(1.15); }
+        .nav-btn:active { transform: scale(0.98); }
 
         .week-label {
             flex: 1;
@@ -111,13 +177,13 @@
         }
 
         .wl-title {
-            font-size: 14px;
-            font-weight: 700;
+            font-size: 15px;
+            font-weight: 600;
             color: var(--text);
         }
 
         .wl-range {
-            font-size: 11px;
+            font-size: 12px;
             font-weight: 400;
             color: var(--muted);
             margin-top: 2px;
@@ -126,47 +192,54 @@
         /* ── Days Container ──────────────────────────── */
 
         .days {
-            padding: 6px 20px 48px;
+            padding: 18px 16px calc(80px + env(safe-area-inset-bottom));
             display: flex;
             flex-direction: column;
-            gap: 12px;
+            gap: 14px;
         }
 
         /* ── Day Card ────────────────────────────────── */
 
         .day-card {
-            background: var(--card);
-            border: 1px solid var(--border);
-            border-radius: 16px;
+            position: relative;
+            background: var(--glass);
+            border: 1px solid var(--glass-border);
+            border-radius: 24px;
             overflow: hidden;
-            box-shadow: 0 1px 4px rgba(44, 36, 32, 0.05);
+            box-shadow: var(--glass-shadow);
         }
 
         .day-card.today {
-            border-color: var(--accent);
-            box-shadow: 0 0 0 1.5px var(--accent),
-                        0 2px 12px rgba(201, 133, 106, 0.13);
+            background:
+                radial-gradient(90% 80% at 100% 100%, rgba(91,155,255,0.16), transparent 70%),
+                var(--glass);
+            border-color: rgba(127,178,255,0.38);
+            box-shadow: inset 0 1px 0 rgba(255,255,255,0.14),
+                        0 12px 32px rgba(0,0,0,0.35),
+                        0 0 24px rgba(59,130,246,0.18);
         }
 
         .day-hd {
             display: flex;
             align-items: center;
             justify-content: space-between;
-            padding: 13px 16px 11px;
+            gap: 10px;
+            padding: 16px 20px 12px;
         }
 
         .day-name {
-            font-family: 'Playfair Display', serif;
-            font-size: 15px;
-            font-weight: 600;
+            font-family: var(--font-display);
+            font-size: 18px;
+            font-weight: 700;
+            letter-spacing: -0.01em;
             color: var(--text);
         }
 
-        .today .day-name { color: var(--accent); }
+        .today .day-name { color: #fff; }
 
         .day-date {
             margin-top: 2px;
-            font-size: 12px;
+            font-size: 13px;
             font-weight: 400;
             color: var(--muted);
         }
@@ -174,56 +247,79 @@
         /* ── Badges ──────────────────────────────────── */
 
         .badge {
-            font-size: 11px;
+            font-size: 12px;
             font-weight: 600;
-            padding: 3px 9px;
-            border-radius: 20px;
+            padding: 4px 10px;
+            border-radius: 999px;
             flex-shrink: 0;
+            border: 1px solid transparent;
         }
 
-        .badge-today { background: var(--accent);       color: #fff; }
-        .badge-rem   { background: var(--accent-light);  color: var(--accent); }
-        .badge-done  { background: #EEF7F2;              color: var(--success); }
+        .badge-today {
+            background: linear-gradient(180deg, rgba(91,155,255,0.45), rgba(59,130,246,0.30));
+            border-color: rgba(127,178,255,0.45);
+            box-shadow: inset 0 1px 0 rgba(255,255,255,0.2);
+            color: #fff;
+        }
+        .badge-rem {
+            background: rgba(127,178,255,0.12);
+            border-color: rgba(127,178,255,0.28);
+            color: var(--accent);
+        }
+        .badge-done {
+            background: rgba(95,211,141,0.15);
+            border-color: rgba(95,211,141,0.28);
+            color: var(--success);
+        }
 
         /* ── Task Items ──────────────────────────────── */
+
+        .task-list { margin: 0 20px; }
 
         .task-item {
             display: flex;
             align-items: center;
-            gap: 10px;
-            padding: 8px 16px;
-            border-top: 1px solid var(--border);
+            gap: 12px;
+            padding: 11px 0;
+            border-top: 1px solid var(--hairline);
         }
 
         /* Custom round checkbox */
         .task-cb {
             -webkit-appearance: none;
             appearance: none;
-            width: 18px;
-            height: 18px;
+            width: 22px;
+            height: 22px;
             border-radius: 50%;
-            border: 2px solid var(--border);
-            background: var(--bg);
+            border: 1.5px solid rgba(255,255,255,0.28);
+            background: rgba(255,255,255,0.05);
+            box-shadow: inset 0 1px 0 rgba(255,255,255,0.08);
             cursor: pointer;
             flex-shrink: 0;
             position: relative;
-            transition: border-color 0.15s, background 0.15s;
+            transition: border-color 0.15s, background 0.15s, box-shadow 0.15s;
         }
 
         .task-cb:hover:not(:checked) { border-color: var(--success); }
 
+        .task-cb:focus-visible {
+            outline: none;
+            box-shadow: 0 0 0 3px rgba(59,130,246,0.35);
+        }
+
         .task-cb:checked {
-            background: var(--success);
-            border-color: var(--success);
+            background: linear-gradient(160deg, #6FE09C, #2FA866);
+            border-color: rgba(95,211,141,0.9);
+            box-shadow: inset 0 1px 0 rgba(255,255,255,0.3), 0 0 10px rgba(95,211,141,0.35);
         }
 
         .task-cb:checked::after {
             content: '';
             position: absolute;
-            left: 4px;
-            top: 2px;
+            left: 6.5px;
+            top: 3px;
             width: 5px;
-            height: 8px;
+            height: 10px;
             border: 2px solid #fff;
             border-top: none;
             border-left: none;
@@ -232,7 +328,7 @@
 
         .task-text {
             flex: 1;
-            font-size: 14px;
+            font-size: 16px;
             line-height: 1.4;
             color: var(--text);
             word-break: break-word;
@@ -240,19 +336,19 @@
 
         .task-item.done .task-text {
             text-decoration: line-through;
-            color: var(--muted);
+            color: var(--faint);
         }
 
         .task-del {
             background: none;
             border: none;
-            padding: 3px 5px;
-            font-size: 13px;
+            padding: 4px 6px;
+            font-size: 15px;
             line-height: 1;
             color: var(--muted);
             cursor: pointer;
-            border-radius: 6px;
-            opacity: 0.4;
+            border-radius: 8px;
+            opacity: 0.55;
             flex-shrink: 0;
             transition: opacity 0.15s, color 0.15s;
         }
@@ -265,22 +361,28 @@
         /* ── Add Task ────────────────────────────────── */
 
         .add-section {
-            padding: 6px 16px 14px;
+            padding: 6px 20px 16px;
+        }
+
+        .task-list:not(:empty) + .add-section {
+            margin: 0 20px;
+            padding: 10px 0 16px;
+            border-top: 1px solid var(--hairline);
         }
 
         .add-btn {
             display: inline-flex;
             align-items: center;
-            gap: 6px;
+            gap: 7px;
             background: none;
             border: none;
             color: var(--accent);
-            font-family: 'DM Sans', sans-serif;
-            font-size: 13px;
-            font-weight: 700;
+            font-family: var(--font);
+            font-size: 14px;
+            font-weight: 600;
             cursor: pointer;
             padding: 4px 0;
-            opacity: 0.8;
+            opacity: 0.9;
             transition: opacity 0.15s;
         }
 
@@ -289,7 +391,7 @@
         .input-row {
             display: none;
             align-items: center;
-            gap: 7px;
+            gap: 8px;
         }
 
         .input-row.open { display: flex; }
@@ -297,55 +399,116 @@
         .task-input {
             flex: 1;
             min-width: 0;
-            background: var(--bg);
-            border: 1px solid var(--border);
-            border-radius: 10px;
-            padding: 7px 11px;
-            font-family: 'DM Sans', sans-serif;
-            font-size: 13px;
+            background: var(--field);
+            border: 1px solid var(--glass-border);
+            border-radius: 12px;
+            padding: 10px 13px;
+            font-family: var(--font);
+            font-size: 16px;
             color: var(--text);
             outline: none;
             transition: border-color 0.15s, box-shadow 0.15s;
         }
 
-        .task-input::placeholder { color: var(--muted); }
+        .task-input::placeholder { color: var(--faint); }
 
         .task-input:focus {
-            border-color: var(--accent);
-            box-shadow: 0 0 0 2.5px rgba(201, 133, 106, 0.15);
+            border-color: rgba(127,178,255,0.65);
+            box-shadow: 0 0 0 3px rgba(59,130,246,0.22);
         }
 
         .btn-confirm,
         .btn-cancel {
-            width: 32px;
-            height: 32px;
-            border-radius: 10px;
-            font-size: 14px;
+            width: 40px;
+            height: 40px;
+            border-radius: 12px;
+            font-size: 16px;
             cursor: pointer;
             display: inline-flex;
             align-items: center;
             justify-content: center;
             flex-shrink: 0;
-            transition: opacity 0.15s, border-color 0.15s, color 0.15s;
+            font-family: var(--font);
+            transition: filter 0.15s, border-color 0.15s, color 0.15s;
         }
 
         .btn-confirm {
-            background: var(--accent);
-            border: none;
+            background: linear-gradient(180deg, rgba(91,155,255,0.38), rgba(59,130,246,0.24));
+            border: 1px solid rgba(127,178,255,0.45);
+            box-shadow: inset 0 1px 0 rgba(255,255,255,0.18), 0 8px 22px rgba(59,130,246,0.18);
             color: #fff;
         }
 
-        .btn-confirm:hover { opacity: 0.85; }
+        .btn-confirm:hover { filter: brightness(1.15); }
 
         .btn-cancel {
-            background: none;
-            border: 1px solid var(--border);
+            background: rgba(255,255,255,0.06);
+            border: 1px solid var(--glass-border);
             color: var(--muted);
         }
 
         .btn-cancel:hover {
-            border-color: var(--danger);
+            border-color: rgba(255,112,112,0.5);
             color: var(--danger);
+        }
+
+        .btn-confirm:active, .btn-cancel:active { transform: scale(0.96); }
+
+        /* ── Sync pill + sign-in sheet from js/cloud-sync.js ──
+           Restyled here only, so the TimeBudget page keeps its own look. */
+
+        #cloudsync-pill {
+            background: linear-gradient(180deg, rgba(60,72,98,0.6), rgba(30,38,56,0.6)) !important;
+            color: var(--text) !important;
+            border: 1px solid var(--glass-border) !important;
+            box-shadow: inset 0 1px 0 rgba(255,255,255,0.14), 0 8px 24px rgba(0,0,0,0.45) !important;
+            -webkit-backdrop-filter: var(--blur);
+            backdrop-filter: var(--blur);
+            font: 500 13px/1 var(--font) !important;
+            padding: 9px 14px !important;
+            opacity: 1 !important;
+        }
+        #cloudsync-sheet { background: rgba(0,0,0,0.55) !important; font-family: var(--font) !important; }
+        #cloudsync-sheet form {
+            background: #121826 !important;
+            color: var(--text) !important;
+            border: 1px solid var(--glass-border);
+            border-bottom: none;
+        }
+        #cloudsync-sheet form > div { color: var(--muted); }
+        #cloudsync-sheet b { color: var(--text); }
+        #cloudsync-sheet input {
+            background: var(--field) !important;
+            color: var(--text) !important;
+            border: 1px solid var(--glass-border) !important;
+        }
+        #cloudsync-sheet [data-signin] {
+            background: linear-gradient(180deg, rgba(91,155,255,0.45), rgba(59,130,246,0.32)) !important;
+            color: #fff !important;
+            border: 1px solid rgba(127,178,255,0.45) !important;
+        }
+        #cloudsync-sheet [data-create] {
+            background: rgba(255,255,255,0.06) !important;
+            color: var(--text) !important;
+            border-color: var(--glass-border) !important;
+        }
+        #cloudsync-sheet a, #cloudsync-sheet [data-x] { color: var(--muted) !important; }
+        #cloudsync-sheet [data-msg] { filter: brightness(1.7); }
+
+        /* Fallback where backdrop blur isn't available, or less transparency is asked for */
+        @supports not ((-webkit-backdrop-filter: blur(1px)) or (backdrop-filter: blur(1px))) {
+            .day-card, .day-card.today { background: var(--glass-solid); }
+            .week-nav, .back-link, #cloudsync-pill { background: rgba(26,32,48,0.96) !important; }
+        }
+        @media (prefers-reduced-transparency: reduce) {
+            .day-card, .day-card.today { background: var(--glass-solid); }
+            .week-nav, .back-link, #cloudsync-pill { background: rgba(26,32,48,0.96) !important; }
+        }
+
+        /* Narrow phones: keep the week bar on one line */
+        @media (max-width: 360px) {
+            .nav-btn { padding: 8px 11px; font-size: 13px; }
+            .header h1 { font-size: 28px; }
         }
     </style>
 </head>
@@ -353,9 +516,20 @@
 <div class="app">
 
     <header class="header">
+        <div>
+            <div class="app-icon" aria-hidden="true">
+                <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+                    <rect x="4" y="3.5" width="16" height="17" rx="3"/>
+                    <path d="M8 9.5l1.6 1.6L12.5 8"/>
+                    <path d="M8 15.5l1.6 1.6 2.9-3.1"/>
+                    <line x1="14.5" y1="10" x2="17" y2="10"/>
+                    <line x1="14.5" y1="16" x2="17" y2="16"/>
+                </svg>
+            </div>
+            <h1>Weekly Planner</h1>
+            <div id="header-summary"></div>
+        </div>
         <a class="back-link" href="index.html">← TimeBudget</a>
-        <h1>Weekly Planner</h1>
-        <div id="header-summary"></div>
     </header>
 
     <nav class="week-nav">
